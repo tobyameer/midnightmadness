@@ -1,0 +1,19 @@
+{
+  "name": "midnight-madness",
+  "private": true,
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "npm --prefix Client ci && npm --prefix Client run build"
+  },
+  "dependencies": {
+    "serverless-http": "^3.2.0",
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "mongoose": "^8.6.0",
+    "dotenv": "^16.4.5",
+    "nodemailer": "^6.9.13",
+    "qrcode": "^1.5.3",
+    "jsonwebtoken": "^9.0.2"
+  }
+}
