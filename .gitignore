@@ -5,3 +5,9 @@ node_modules/
 
 # Client env
 midnight-madness-landing/Client/.env
+
+# env files
+.env
+*.env
+server/.env
+server/.env.local
