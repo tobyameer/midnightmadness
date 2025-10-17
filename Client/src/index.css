@@ -96,13 +96,7 @@ All colors MUST be HSL.
   }
 }
 
-@font-face {
-  font-family: "JMH Halloween 2017";
-  src: url("/src/assets/fonts/JMH Hallowen 2017.otf") format("opentype");
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
+
 
 @layer base {
   /* Fluid base type scale for consistent readability */
