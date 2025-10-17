@@ -67,10 +67,10 @@ app.get("/api/health", (_req, res) => {
   return res.json({ status: "ok", message: "API is running" });
 });
 
-// Apply routes
-app.use(publicRoutes);
-app.use("/admin", adminVerifyRoutes);
-app.use("/tickets", ticketRoutes);
+// Apply routes - mount at /api to match frontend calls
+app.use("/api", publicRoutes);
+app.use("/api/admin", adminVerifyRoutes);
+app.use("/api/tickets", ticketRoutes);
 
 // 404 handler
 app.use((req, res) => {
