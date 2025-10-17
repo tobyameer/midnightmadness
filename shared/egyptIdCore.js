@@ -1,6 +1,5 @@
-// Hybrid module: Works with both ES6 import and CommonJS require
-
-export const GOVERNORATE_CODES = {
+// Pure CommonJS version for backend
+const GOVERNORATE_CODES = {
   "01": "Cairo",
   "02": "Alexandria",
   "03": "Port Said",
@@ -50,7 +49,7 @@ function computeLuhnCheckDigit(payload) {
   return (10 - (sum % 10)) % 10;
 }
 
-export function validateEgyptianId(nid, options = {}) {
+function validateEgyptianId(nid, options = {}) {
   const settings = {
     useLuhn: Boolean(options.useLuhn),
   };
@@ -148,7 +147,7 @@ export function validateEgyptianId(nid, options = {}) {
   return result;
 }
 
-export function getEgyptianIdGender(id) {
+function getEgyptianIdGender(id) {
   const raw = String(id || "").trim();
   if (!/^\d{14}$/.test(raw)) {
     return "invalid";
@@ -160,42 +159,8 @@ export function getEgyptianIdGender(id) {
   return genderDigit % 2 === 0 ? "female" : "male";
 }
 
-const exported = {
+module.exports = {
   GOVERNORATE_CODES,
   validateEgyptianId,
   getEgyptianIdGender,
 };
-
-export default exported;
-
-// CommonJS compatibility for Netlify Functions
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = exported;
-  module.exports.default = exported;
-  module.exports.GOVERNORATE_CODES = GOVERNORATE_CODES;
-  module.exports.validateEgyptianId = validateEgyptianId;
-  module.exports.getEgyptianIdGender = getEgyptianIdGender;
-}
-
-if (process.env.NODE_ENV === "test") {
-  const samples = [
-    { id: "30101011234561", expectValid: true, note: "Valid 2001 ID" },
-    { id: "30013211234561", expectValid: false, note: "Invalid month (13)" },
-    {
-      id: "18801011234561",
-      expectValid: false,
-      note: "Century indicator invalid",
-    },
-    { id: "35001011234561", expectValid: false, note: "Future birth date" },
-  ];
-
-  samples.forEach(({ id, expectValid, note }) => {
-    const outcome = validateEgyptianId(id);
-    const passed = outcome.valid === expectValid;
-    const prefix = passed ? "✅" : "❌";
-    console.log(`${prefix} Egyptian ID sample (${note}): ${id}`);
-    if (!passed) {
-      console.log("    ↳ Errors:", outcome.errors.join("; "));
-    }
-  });
-}
