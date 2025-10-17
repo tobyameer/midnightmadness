@@ -65,11 +65,13 @@ const ticketRoutes = require('../../routes/tickets');
 const publicRoutes = require('../../routes/public');
 const adminVerifyRoutes = require('../../routes/adminVerify');
 
-// Apply routes
+// Health check - must be before other routes
+app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
+
+// Apply routes - they already have /api prefix in them
 app.use(publicRoutes);
 app.use('/api/admin', adminVerifyRoutes);
 app.use('/api/tickets', ticketRoutes);
-app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
 // 404 handler
 app.use((req, res) => {
