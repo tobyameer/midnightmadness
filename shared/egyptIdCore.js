@@ -1,37 +1,37 @@
-export const GOVERNORATE_CODES = {
-  '01': 'Cairo',
-  '02': 'Alexandria',
-  '03': 'Port Said',
-  '04': 'Suez',
-  '11': 'Damietta',
-  '12': 'Dakahlia',
-  '13': 'Sharqia',
-  '14': 'Kalyoubia',
-  '15': 'Kafr El Sheikh',
-  '16': 'Gharbia',
-  '17': 'Monufia',
-  '18': 'Beheira',
-  '19': 'Ismailia',
-  '21': 'Giza',
-  '22': 'Beni Suef',
-  '23': 'Fayoum',
-  '24': 'Minya',
-  '25': 'Assiut',
-  '26': 'Sohag',
-  '27': 'Qena',
-  '28': 'Aswan',
-  '29': 'Luxor',
-  '31': 'Red Sea',
-  '32': 'New Valley',
-  '33': 'Matrouh',
-  '34': 'North Sinai',
-  '35': 'South Sinai',
-  '88': 'Foreign',
+const GOVERNORATE_CODES = {
+  "01": "Cairo",
+  "02": "Alexandria",
+  "03": "Port Said",
+  "04": "Suez",
+  11: "Damietta",
+  12: "Dakahlia",
+  13: "Sharqia",
+  14: "Kalyoubia",
+  15: "Kafr El Sheikh",
+  16: "Gharbia",
+  17: "Monufia",
+  18: "Beheira",
+  19: "Ismailia",
+  21: "Giza",
+  22: "Beni Suef",
+  23: "Fayoum",
+  24: "Minya",
+  25: "Assiut",
+  26: "Sohag",
+  27: "Qena",
+  28: "Aswan",
+  29: "Luxor",
+  31: "Red Sea",
+  32: "New Valley",
+  33: "Matrouh",
+  34: "North Sinai",
+  35: "South Sinai",
+  88: "Foreign",
 };
 
 function computeLuhnCheckDigit(payload) {
   let sum = 0;
-  const reversed = payload.split('').reverse();
+  const reversed = payload.split("").reverse();
   reversed.forEach((char, index) => {
     let digit = Number(char);
     if (Number.isNaN(digit)) {
@@ -48,12 +48,12 @@ function computeLuhnCheckDigit(payload) {
   return (10 - (sum % 10)) % 10;
 }
 
-export function validateEgyptianId(nid, options = {}) {
+function validateEgyptianId(nid, options = {}) {
   const settings = {
     useLuhn: Boolean(options.useLuhn),
   };
 
-  const raw = String(nid || '').trim();
+  const raw = String(nid || "").trim();
   const result = {
     valid: true,
     errors: [],
@@ -61,18 +61,18 @@ export function validateEgyptianId(nid, options = {}) {
 
   if (!raw) {
     result.valid = false;
-    result.errors.push('National ID is required.');
+    result.errors.push("National ID is required.");
     return result;
   }
 
   if (!/^\d+$/.test(raw)) {
     result.valid = false;
-    result.errors.push('National ID must contain digits only.');
+    result.errors.push("National ID must contain digits only.");
   }
 
   if (raw.length !== 14) {
     result.valid = false;
-    result.errors.push('National ID must be exactly 14 digits.');
+    result.errors.push("National ID must be exactly 14 digits.");
   }
 
   if (!result.valid) {
@@ -82,7 +82,7 @@ export function validateEgyptianId(nid, options = {}) {
   const centuryDigit = Number(raw[0]);
   if (![2, 3].includes(centuryDigit)) {
     result.valid = false;
-    result.errors.push('Century indicator must be 2 or 3.');
+    result.errors.push("Century indicator must be 2 or 3.");
   }
 
   const yearPart = Number(raw.slice(1, 3));
@@ -102,12 +102,12 @@ export function validateEgyptianId(nid, options = {}) {
     birthDate.getDate() !== dayPart
   ) {
     result.valid = false;
-    result.errors.push('Birth date encoded in National ID is invalid.');
+    result.errors.push("Birth date encoded in National ID is invalid.");
   } else {
     const today = new Date();
     if (birthDate > today) {
       result.valid = false;
-      result.errors.push('Birth date cannot be in the future.');
+      result.errors.push("Birth date cannot be in the future.");
     } else {
       result.birthDate = birthDate.toISOString().slice(0, 10);
     }
@@ -118,14 +118,14 @@ export function validateEgyptianId(nid, options = {}) {
 
   if (!governorate) {
     result.valid = false;
-    result.errors.push('Governorate code in National ID is not recognised.');
+    result.errors.push("Governorate code in National ID is not recognised.");
   } else {
     result.governorate = governorate;
   }
 
   const genderDigit = Number(raw[12]);
   if (!Number.isNaN(genderDigit)) {
-    result.gender = genderDigit % 2 === 0 ? 'female' : 'male';
+    result.gender = genderDigit % 2 === 0 ? "female" : "male";
   }
 
   if (settings.useLuhn) {
@@ -134,7 +134,7 @@ export function validateEgyptianId(nid, options = {}) {
     if (expectedCheckDigit !== actualCheckDigit) {
       result.valid = false;
       result.errors.push(
-        'Check digit does not match (Luhn heuristic – unofficial validation).',
+        "Check digit does not match (Luhn heuristic – unofficial validation)."
       );
     }
   }
@@ -146,49 +146,47 @@ export function validateEgyptianId(nid, options = {}) {
   return result;
 }
 
-export function getEgyptianIdGender(id) {
-  const raw = String(id || '').trim();
+function getEgyptianIdGender(id) {
+  const raw = String(id || "").trim();
   if (!/^\d{14}$/.test(raw)) {
-    return 'invalid';
+    return "invalid";
   }
   const genderDigit = Number(raw[12]);
   if (Number.isNaN(genderDigit)) {
-    return 'invalid';
+    return "invalid";
   }
-  return genderDigit % 2 === 0 ? 'female' : 'male';
+  return genderDigit % 2 === 0 ? "female" : "male";
 }
 
-const exported = {
+// CommonJS exports
+module.exports = {
   GOVERNORATE_CODES,
   validateEgyptianId,
   getEgyptianIdGender,
 };
 
-export default exported;
+// Also export as default for compatibility
+module.exports.default = module.exports;
 
-if (process.env.NODE_ENV === 'test') {
+if (process.env.NODE_ENV === "test") {
   const samples = [
-    { id: '30101011234561', expectValid: true, note: 'Valid 2001 ID' },
-    { id: '30013211234561', expectValid: false, note: 'Invalid month (13)' },
-    { id: '18801011234561', expectValid: false, note: 'Century indicator invalid' },
-    { id: '35001011234561', expectValid: false, note: 'Future birth date' },
+    { id: "30101011234561", expectValid: true, note: "Valid 2001 ID" },
+    { id: "30013211234561", expectValid: false, note: "Invalid month (13)" },
+    {
+      id: "18801011234561",
+      expectValid: false,
+      note: "Century indicator invalid",
+    },
+    { id: "35001011234561", expectValid: false, note: "Future birth date" },
   ];
 
   samples.forEach(({ id, expectValid, note }) => {
     const outcome = validateEgyptianId(id);
     const passed = outcome.valid === expectValid;
-    const prefix = passed ? '✅' : '❌';
-    // eslint-disable-next-line no-console
+    const prefix = passed ? "✅" : "❌";
     console.log(`${prefix} Egyptian ID sample (${note}): ${id}`);
     if (!passed) {
-      // eslint-disable-next-line no-console
-      console.log('    ↳ Errors:', outcome.errors.join('; '));
+      console.log("    ↳ Errors:", outcome.errors.join("; "));
     }
   });
-}
-
-// Optional CommonJS compatibility layer for Node environments.
-if (typeof module !== 'undefined') {
-  module.exports = exported;
-  module.exports.default = exported;
 }
