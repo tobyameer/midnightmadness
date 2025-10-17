@@ -1,86 +1,68 @@
-const serverless = require("serverless-http");
+// netlify/functions/api.js
+const serverlessHttp = require("serverless-http");
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const mongoose = require("mongoose");
 
+// IMPORTANT: all your route files must also use CommonJS (module.exports / require)
+const ticketRoutes = require("../../routes/tickets");
+const publicRoutes = require("../../routes/public");
+const adminVerifyRoutes = require("../../routes/adminVerify");
+
 const app = express();
 
-// Trust proxy
+// Basic hardening
 app.set("trust proxy", 1);
 app.set("etag", false);
-
-// Security
 app.use(helmet());
 
-// CORS - allow all origins for now
+// CORS (relax for now; tighten later)
 app.use(cors());
-
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// MongoDB connection with caching
+// --- Mongo connection with reuse across invocations ---
 let cachedDb = null;
 async function connectToDatabase() {
-  if (cachedDb && mongoose.connection.readyState === 1) {
-    return cachedDb;
-  }
+  if (cachedDb && mongoose.connection.readyState === 1) return cachedDb;
 
   const uri = process.env.MONGO_URI;
   if (!uri) {
     console.warn("⚠ MONGO_URI not defined");
     return null;
   }
-
   try {
-    await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 5000,
-    });
+    await mongoose.connect(uri, { serverSelectionTimeoutMS: 5000 });
     cachedDb = mongoose.connection;
     console.log("✅ MongoDB connected");
     return cachedDb;
-  } catch (error) {
-    console.warn(`⚠ MongoDB connection failed: ${error.message}`);
+  } catch (err) {
+    console.warn(`⚠ MongoDB connection failed: ${err.message}`);
     return null;
   }
 }
 
-// Import routes
-const ticketRoutes = require("../../routes/tickets");
-const publicRoutes = require("../../routes/public");
-const adminVerifyRoutes = require("../../routes/adminVerify");
-
-// Debug middleware
-app.use((req, res, next) => {
-  console.log("Incoming request:", req.method, req.path, req.url);
+// Debug
+app.use((req, _res, next) => {
+  console.log("Incoming:", req.method, req.url);
   next();
 });
 
-// Simple health check
-app.get("/health", (_req, res) => {
-  console.log("Health check hit");
-  return res.json({ status: "ok", message: "API is running" });
-});
+// Health
+app.get("/health", (_req, res) => res.json({ status: "ok" }));
+app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
 
-app.get("/api/health", (_req, res) => {
-  console.log("API Health check hit");
-  return res.json({ status: "ok", message: "API is running" });
-});
-
-// Apply routes - mount at /api to match frontend calls
+// Your API (we keep `/api` here; Netlify redirect will map /api/* → this function)
 app.use("/api", publicRoutes);
 app.use("/api/admin", adminVerifyRoutes);
 app.use("/api/tickets", ticketRoutes);
 
-// 404 handler
+// 404
 app.use((req, res) => {
-  console.log("404 hit:", req.path, req.url);
-  res.status(404).json({
-    message: `Route not found.`,
-    path: req.path,
-    url: req.url,
-    method: req.method,
-  });
+  res
+    .status(404)
+    .json({ message: "Route not found.", path: req.path, url: req.url });
 });
 
 // Error handler
@@ -91,16 +73,14 @@ app.use((err, _req, res, _next) => {
     .json({ message: "Unexpected server error.", details: err.message });
 });
 
-// Export handler
-const handler = serverless(app);
+// Build serverless handler (rename to avoid confusion)
+const appHandler = serverlessHttp(app);
 
-exports.handler = async (event, context) => {
+// Export handler for Netlify (CommonJS)
+module.exports.handler = async (event, context) => {
+  // Re-use DB connection between warm invocations
   context.callbackWaitsForEmptyEventLoop = false;
 
-  console.log("Function invoked:", event.path, event.httpMethod);
-
-  // Connect to DB before handling request
   await connectToDatabase();
-
-  return handler(event, context);
+  return appHandler(event, context);
 };

@@ -17,3 +17,6 @@ server/.env.local
 *.env
 Client/.env
 server/.env
+
+# Local Netlify folder
+.netlify

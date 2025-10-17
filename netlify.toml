@@ -1,21 +1,35 @@
 [build]
   base = "Client"
   publish = "dist"
-  command = "npm ci --include=dev && npm run build && cd ../server && npm ci"
-  functions = "../server/netlify/functions"
+  # Build the client, then install deps for the server (for the functions)
+  command = "npm ci && npm run build && npm --prefix ../server ci"
+
+[functions]
+  directory = "../server/netlify/functions"
+  node_bundler = "esbuild"
+  # Make sure your server code that the function imports is bundled
+  included_files = [
+    "../server/routes/**",
+    "../server/models/**",
+    "../server/utils/**",
+    "../server/middleware/**"
+  ]
 
 [build.environment]
   NODE_VERSION = "20"
 
-[[plugins]]
-  package = "@netlify/plugin-functions-install-core"
-
+# API to serverless function
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
   status = 200
 
+# SPA fallback
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Optional but fine to keep
+[[plugins]]
+  package = "@netlify/plugin-functions-install-core"
