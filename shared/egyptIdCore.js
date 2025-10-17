@@ -1,4 +1,6 @@
-const GOVERNORATE_CODES = {
+// Hybrid module: Works with both ES6 import and CommonJS require
+
+export const GOVERNORATE_CODES = {
   "01": "Cairo",
   "02": "Alexandria",
   "03": "Port Said",
@@ -48,7 +50,7 @@ function computeLuhnCheckDigit(payload) {
   return (10 - (sum % 10)) % 10;
 }
 
-function validateEgyptianId(nid, options = {}) {
+export function validateEgyptianId(nid, options = {}) {
   const settings = {
     useLuhn: Boolean(options.useLuhn),
   };
@@ -146,7 +148,7 @@ function validateEgyptianId(nid, options = {}) {
   return result;
 }
 
-function getEgyptianIdGender(id) {
+export function getEgyptianIdGender(id) {
   const raw = String(id || "").trim();
   if (!/^\d{14}$/.test(raw)) {
     return "invalid";
@@ -158,15 +160,22 @@ function getEgyptianIdGender(id) {
   return genderDigit % 2 === 0 ? "female" : "male";
 }
 
-// CommonJS exports
-module.exports = {
+const exported = {
   GOVERNORATE_CODES,
   validateEgyptianId,
   getEgyptianIdGender,
 };
 
-// Also export as default for compatibility
-module.exports.default = module.exports;
+export default exported;
+
+// CommonJS compatibility for Netlify Functions
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = exported;
+  module.exports.default = exported;
+  module.exports.GOVERNORATE_CODES = GOVERNORATE_CODES;
+  module.exports.validateEgyptianId = validateEgyptianId;
+  module.exports.getEgyptianIdGender = getEgyptianIdGender;
+}
 
 if (process.env.NODE_ENV === "test") {
   const samples = [
