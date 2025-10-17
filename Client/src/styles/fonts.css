@@ -1,0 +1,12 @@
+@font-face {
+  font-family: "JMH Halloween 2017";
+  src:
+    url("/fonts/JMH-Halloween-2017.woff2") format("woff2"),
+    url("/fonts/JMH-Halloween-2017.woff") format("woff"),
+    url("/fonts/JMH-Halloween-2017.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+.font-halloween { font-family: "JMH Halloween 2017", cursive; }

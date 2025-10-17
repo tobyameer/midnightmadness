@@ -1,0 +1,204 @@
+@import "@/styles/fonts.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 330 8% 4.7%; /* #0D0B0C */
+    --foreground: black; /* #9B8876 */
+
+    --card: 351 16% 8.8%; /* #1A1314 */
+    --card-foreground: 29 16% 53.5%;
+
+    --popover: 351 16% 10%;
+    --popover-foreground: 29 16% 53.5%;
+
+    --primary: 9 74% 47%; /* #D23A1F */
+    --primary-foreground: 0 0% 96%;
+
+    --secondary: 351 16% 12%;
+    --secondary-foreground: 29 16% 60%;
+
+    --muted: 10 18% 19%; /* #3A2B28 */
+    --muted-foreground: 14 45% 47%; /* #B05D43 */
+
+    --accent: 11 100% 57%; /* #FF4C24 */
+    --accent-foreground: white
+
+    --destructive: 0 70% 45%;
+    --destructive-foreground: 0 0% 96%;
+
+    --border: 10 18% 19%;
+    --input: 10 18% 19%;
+    --ring: 9 74% 47%;
+
+    --radius: 0.75rem;
+
+    --gradient-primary: linear-gradient(135deg, hsl(9 74% 47%) 0%, hsl(11 100% 57%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(11 100% 57%) 0%, hsl(9 74% 47%) 100%);
+    --gradient-dark: linear-gradient(180deg, hsl(330 8% 4.7%) 0%, hsl(351 16% 8.8%) 100%);
+
+    --shadow-card: 0 20px 50px -20px rgba(210, 58, 31, 0.35);
+    --shadow-glow: 0 0 45px rgba(210, 58, 31, 0.45);
+
+    --sidebar-background: 330 8% 4.7%;
+    --sidebar-foreground: 29 16% 53.5%;
+    --sidebar-primary: 9 74% 47%;
+    --sidebar-primary-foreground: 0 0% 96%;
+    --sidebar-accent: 351 16% 12%;
+    --sidebar-accent-foreground: 29 16% 53.5%;
+    --sidebar-border: 10 18% 19%;
+    --sidebar-ring: 9 74% 47%;
+  }
+
+  .dark {
+    --background: 330 8% 4.7%;
+    --foreground: 29 16% 53.5%;
+
+    --card: 351 16% 8.8%;
+    --card-foreground: 29 16% 53.5%;
+
+    --popover: 351 16% 10%;
+    --popover-foreground: 29 16% 53.5%;
+
+    --primary: 9 74% 47%;
+    --primary-foreground: 0 0% 96%;
+
+    --secondary: 351 16% 12%;
+    --secondary-foreground: 29 16% 60%;
+
+    --muted: 10 18% 19%;
+    --muted-foreground: 14 45% 47%;
+
+    --accent: 11 100% 57%;
+    --accent-foreground: 330 8% 6%;
+
+    --destructive: 0 70% 45%;
+    --destructive-foreground: 0 0% 96%;
+
+    --border: 10 18% 19%;
+    --input: 10 18% 19%;
+    --ring: 9 74% 47%;
+
+    --sidebar-background: 330 8% 4.7%;
+    --sidebar-foreground: 29 16% 53.5%;
+    --sidebar-primary: 9 74% 47%;
+    --sidebar-primary-foreground: 0 0% 96%;
+    --sidebar-accent: 351 16% 12%;
+    --sidebar-accent-foreground: 29 16% 53.5%;
+    --sidebar-border: 10 18% 19%;
+    --sidebar-ring: 9 74% 47%;
+  }
+}
+
+@font-face {
+  font-family: "JMH Halloween 2017";
+  src: url("/src/assets/fonts/JMH Hallowen 2017.otf") format("opentype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  /* Fluid base type scale for consistent readability */
+  html {
+    font-size: clamp(18px, 0.45vw + 16px, 19.2px);
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    line-height: 1.7;
+  }
+  
+  button,
+  input,
+  textarea,
+  select,
+  label {
+    font-size: 1rem;
+  }
+
+  input,
+  textarea,
+  select {
+    @apply bg-card text-foreground border border-border focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent))] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--background))];
+  }
+
+  label {
+    color: hsl(var(--muted-foreground));
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-bold tracking-tight;
+    color: hsl(var(--accent));
+  }
+
+  a {
+    color: hsl(var(--accent));
+  }
+}
+
+@layer utilities {
+  .text-gradient-gold {
+    @apply bg-gradient-to-r from-[hsl(var(--accent))] to-[hsl(var(--primary))] bg-clip-text text-transparent;
+  }
+  
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+
+  .shadow-horror {
+    box-shadow: var(--shadow-card);
+  }
+}
+
+.confetti-container {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 50;
+}
+
+.confetti-piece {
+  position: absolute;
+  top: -10%;
+  width: 0.5rem;
+  height: 0.85rem;
+  border-radius: 0.2rem;
+  opacity: 0.9;
+  animation-name: confetti-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translate3d(0, 0, 0) rotateZ(0deg);
+    opacity: 0.9;
+  }
+  50% {
+    transform: translate3d(12px, 55vh, 0) rotateZ(90deg);
+    opacity: 0.7;
+  }
+  100% {
+    transform: translate3d(-12px, 110vh, 0) rotateZ(180deg);
+    opacity: 0.4;
+  }
+}
