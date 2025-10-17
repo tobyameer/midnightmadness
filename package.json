@@ -2,9 +2,9 @@
   "name": "midnight-madness",
   "private": true,
   "engines": { "node": ">=20" },
-  "scripts": {
-    "build": "npm --prefix Client ci && npm --prefix Client run build"
-  },
+"scripts": {
+    "build": "npm --prefix Client install && npm --prefix Client run build"
+},
   "dependencies": {
     "serverless-http": "^3.2.0",
     "express": "^4.19.2",
