@@ -1,37 +1,22 @@
-const serverless = require('serverless-http');
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const mongoose = require('mongoose');
+const serverless = require("serverless-http");
+const express = require("express");
+const cors = require("cors");
+const helmet = require("helmet");
+const mongoose = require("mongoose");
 
 const app = express();
 
 // Trust proxy
-app.set('trust proxy', 1);
-app.set('etag', false);
+app.set("trust proxy", 1);
+app.set("etag", false);
 
 // Security
 app.use(helmet());
 
-// CORS
-const allowedOrigins = [
-  process.env.CLIENT_URL,
-  process.env.ADMIN_CLIENT_URL,
-  'https://clearvisioncai.netlify.app'
-].filter(Boolean);
+// CORS - allow all origins for now
+app.use(cors());
 
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(null, false);
-    }
-  },
-  credentials: true
-}));
-
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 // MongoDB connection with caching
@@ -43,7 +28,7 @@ async function connectToDatabase() {
 
   const uri = process.env.MONGO_URI;
   if (!uri) {
-    console.warn('⚠ MONGO_URI not defined');
+    console.warn("⚠ MONGO_URI not defined");
     return null;
   }
 
@@ -52,7 +37,7 @@ async function connectToDatabase() {
       serverSelectionTimeoutMS: 5000,
     });
     cachedDb = mongoose.connection;
-    console.log('✅ MongoDB connected');
+    console.log("✅ MongoDB connected");
     return cachedDb;
   } catch (error) {
     console.warn(`⚠ MongoDB connection failed: ${error.message}`);
@@ -61,27 +46,49 @@ async function connectToDatabase() {
 }
 
 // Import routes
-const ticketRoutes = require('../../routes/tickets');
-const publicRoutes = require('../../routes/public');
-const adminVerifyRoutes = require('../../routes/adminVerify');
+const ticketRoutes = require("../../routes/tickets");
+const publicRoutes = require("../../routes/public");
+const adminVerifyRoutes = require("../../routes/adminVerify");
 
-// Health check - must be before other routes
-app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
+// Debug middleware
+app.use((req, res, next) => {
+  console.log("Incoming request:", req.method, req.path, req.url);
+  next();
+});
 
-// Apply routes - they already have /api prefix in them
+// Simple health check
+app.get("/health", (_req, res) => {
+  console.log("Health check hit");
+  return res.json({ status: "ok", message: "API is running" });
+});
+
+app.get("/api/health", (_req, res) => {
+  console.log("API Health check hit");
+  return res.json({ status: "ok", message: "API is running" });
+});
+
+// Apply routes
 app.use(publicRoutes);
-app.use('/api/admin', adminVerifyRoutes);
-app.use('/api/tickets', ticketRoutes);
+app.use("/admin", adminVerifyRoutes);
+app.use("/tickets", ticketRoutes);
 
 // 404 handler
 app.use((req, res) => {
-  res.status(404).json({ message: `Route ${req.originalUrl} not found.` });
+  console.log("404 hit:", req.path, req.url);
+  res.status(404).json({
+    message: `Route not found.`,
+    path: req.path,
+    url: req.url,
+    method: req.method,
+  });
 });
 
 // Error handler
 app.use((err, _req, res, _next) => {
-  console.error('Unhandled error:', err);
-  res.status(500).json({ message: 'Unexpected server error.', details: err.message });
+  console.error("Unhandled error:", err);
+  res
+    .status(500)
+    .json({ message: "Unexpected server error.", details: err.message });
 });
 
 // Export handler
@@ -89,9 +96,11 @@ const handler = serverless(app);
 
 exports.handler = async (event, context) => {
   context.callbackWaitsForEmptyEventLoop = false;
-  
+
+  console.log("Function invoked:", event.path, event.httpMethod);
+
   // Connect to DB before handling request
   await connectToDatabase();
-  
+
   return handler(event, context);
 };
