@@ -1,7 +1,7 @@
 [build]
   base = "Client"
   publish = "dist"
-  command = "npm install && npm run build"
+  command = "npm ci --include=dev && npm run build"
   functions = "../server/netlify/functions"
 
 [build.environment]
