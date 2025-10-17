@@ -16,33 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { User, Users, ArrowLeft } from "lucide-react";
 import { PaymentInfo } from "./PaymentInfo";
 import { getEgyptianIdGender } from "@shared/egyptId";
-
-// Minimal API helper: post the registration to /api/tickets/manual
-async function submitManualPaymentTicket(payload: unknown): Promise<any> {
-  const res = await fetch("/api/tickets/manual", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  if (!res.ok) {
-    // Try to surface a readable error from the server
-    let msg = `Request failed with status ${res.status}`;
-    try {
-      const text = await res.text();
-      if (text) msg = text;
-    } catch {
-      // ignore
-    }
-    throw new Error(msg);
-  }
-
-  try {
-    return await res.json();
-  } catch {
-    return {};
-  }
-}
+import { submitManualPaymentTicket } from "@/lib/api";
 
 const singleSchema = z.object({
   fullName: z
