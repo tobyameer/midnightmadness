@@ -1,11 +1,14 @@
 [build]
   base = "Client"
   publish = "dist"
-  command = "npm ci --include=dev && npm run build"
+  command = "npm ci --include=dev && npm run build && cd ../server && npm ci"
   functions = "../server/netlify/functions"
 
 [build.environment]
   NODE_VERSION = "20"
+
+[[plugins]]
+  package = "@netlify/plugin-functions-install-core"
 
 [[redirects]]
   from = "/api/*"
