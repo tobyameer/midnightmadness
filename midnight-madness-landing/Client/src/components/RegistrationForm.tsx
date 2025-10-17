@@ -1,0 +1,716 @@
+import { useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { User, Users, ArrowLeft } from "lucide-react";
+import { PaymentInfo } from "./PaymentInfo";
+import { getEgyptianIdGender } from "@shared/egyptId";
+import { submitManualPaymentTicket } from "@/lib/api";
+
+const singleSchema = z.object({
+  fullName: z
+    .string()
+    .trim()
+    .min(2, { message: "Name must be at least 2 characters" })
+    .max(100, { message: "Name must be less than 100 characters" }),
+  phone: z
+    .string()
+    .trim()
+    .min(10, { message: "Please enter a valid phone number" })
+    .max(15, { message: "Phone number is too long" })
+    .regex(/^\+?[\d\s-()]+$/, { message: "Please enter a valid phone number" }),
+  email: z
+    .string()
+    .trim()
+    .email({ message: "Please enter a valid email address" })
+    .max(255, { message: "Email must be less than 255 characters" }),
+  nationalId: z
+    .string()
+    .trim()
+    .regex(/^\d{14}$/, { message: "National ID must be 14 digits" }),
+});
+
+const coupleSchema = z.object({
+  fullName1: z
+    .string()
+    .trim()
+    .min(2, { message: "Name must be at least 2 characters" })
+    .max(100, { message: "Name must be less than 100 characters" }),
+  phone1: z
+    .string()
+    .trim()
+    .min(10, { message: "Please enter a valid phone number" })
+    .max(15, { message: "Phone number is too long" })
+    .regex(/^\+?[\d\s-()]+$/, { message: "Please enter a valid phone number" }),
+  email1: z
+    .string()
+    .trim()
+    .email({ message: "Please enter a valid email address" })
+    .max(255, { message: "Email must be less than 255 characters" }),
+  fullName2: z
+    .string()
+    .trim()
+    .min(2, { message: "Name must be at least 2 characters" })
+    .max(100, { message: "Name must be less than 100 characters" }),
+  phone2: z
+    .string()
+    .trim()
+    .min(10, { message: "Please enter a valid phone number" })
+    .max(15, { message: "Phone number is too long" })
+    .regex(/^\+?[\d\s-()]+$/, { message: "Please enter a valid phone number" }),
+  email2: z
+    .string()
+    .trim()
+    .email({ message: "Please enter a valid email address" })
+    .max(255, { message: "Email must be less than 255 characters" }),
+  nationalId1: z
+    .string()
+    .trim()
+    .regex(/^\d{14}$/, { message: "National ID must be 14 digits" }),
+  nationalId2: z
+    .string()
+    .trim()
+    .regex(/^\d{14}$/, { message: "National ID must be 14 digits" }),
+});
+
+type SingleFormData = z.infer<typeof singleSchema>;
+type CoupleFormData = z.infer<typeof coupleSchema>;
+type PackageType = "single" | "couple" | null;
+
+export const RegistrationForm = () => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedPackage, setSelectedPackage] = useState<PackageType>(null);
+  const [showPaymentInfo, setShowPaymentInfo] = useState(false);
+  const { toast } = useToast();
+
+  const singleForm = useForm<SingleFormData>({
+    resolver: zodResolver(singleSchema),
+  });
+
+  const coupleForm = useForm<CoupleFormData>({
+    resolver: zodResolver(coupleSchema),
+  });
+
+  const detectGenderInfo = (value: string | undefined) => {
+    const trimmed = (value || "").trim();
+    if (!trimmed) {
+      return { gender: null, error: null };
+    }
+
+    const gender = getEgyptianIdGender(trimmed);
+    if (gender === "invalid") {
+      return {
+        gender: null,
+        error: "Invalid national ID. Must be 14 digits.",
+      };
+    }
+
+    return { gender, error: null };
+  };
+
+  const singleNationalId = singleForm.watch("nationalId");
+  const maleNationalId = coupleForm.watch("nationalId1");
+  const femaleNationalId = coupleForm.watch("nationalId2");
+
+  const singleGenderInfo = useMemo(
+    () => detectGenderInfo(singleNationalId),
+    [singleNationalId]
+  );
+  const maleGenderInfo = useMemo(
+    () => detectGenderInfo(maleNationalId),
+    [maleNationalId]
+  );
+  const femaleGenderInfo = useMemo(
+    () => detectGenderInfo(femaleNationalId),
+    [femaleNationalId]
+  );
+
+  const onSubmitSingle = async (data: SingleFormData) => {
+    setIsSubmitting(true);
+
+    const payload = {
+      packageType: "single" as const,
+      contactEmail: data.email.trim(),
+      attendees: [
+        {
+          fullName: data.fullName.trim(),
+          nationalId: data.nationalId.trim(),
+          gender:
+            getEgyptianIdGender(data.nationalId.trim()) === "male"
+              ? "male"
+              : "female",
+          email: data.email.trim(),
+          phone: data.phone.trim(),
+        },
+      ],
+    };
+
+    try {
+      await submitManualPaymentTicket(payload);
+      toast({
+        title: "Registration successful",
+        description: "Complete your payment to receive your ticket.",
+      });
+      setShowPaymentInfo(true);
+    } catch (error) {
+      toast({
+        title: "Registration failed",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Unable to submit registration.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const onSubmitCouple = async (data: CoupleFormData) => {
+    setIsSubmitting(true);
+
+    const maleGender = getEgyptianIdGender(data.nationalId1.trim());
+    const femaleGender = getEgyptianIdGender(data.nationalId2.trim());
+    if (maleGender !== "male" || femaleGender !== "female") {
+      toast({
+        title: "Invalid national IDs",
+        description:
+          "Couples package requires exactly one male and one female.",
+        variant: "destructive",
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
+    const payload = {
+      packageType: "couple" as const,
+      contactEmail: data.email1.trim(),
+      attendees: [
+        {
+          fullName: data.fullName1.trim(),
+          nationalId: data.nationalId1.trim(),
+          gender: "male" as const,
+          email: data.email1.trim(),
+          phone: data.phone1.trim(),
+        },
+        {
+          fullName: data.fullName2.trim(),
+          nationalId: data.nationalId2.trim(),
+          gender: "female" as const,
+          email: data.email2.trim(),
+          phone: data.phone2.trim(),
+        },
+      ],
+    };
+
+    try {
+      await submitManualPaymentTicket(payload);
+      toast({
+        title: "Registration successful",
+        description: "Complete your payment to receive your tickets.",
+      });
+      setShowPaymentInfo(true);
+    } catch (error) {
+      toast({
+        title: "Registration failed",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Unable to submit registration.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (showPaymentInfo) {
+    return (
+      <section id="register" className="py-24 px-4 bg-background">
+        <div className="container mx-auto max-w-4xl">
+          <PaymentInfo />
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section id="register" className="py-24 px-4 bg-background">
+      <div className="container mx-auto max-w-2xl">
+        <div className="text-center mb-12">
+          <h2 className=" text-white text-4xl md:text-5xl mb-4">
+            Choose Your <span className="text-[#a22e1f]">Package</span>
+          </h2>
+          <p className="text-gray-500 text-lg">
+            Register now and secure your spot at the event of the year
+          </p>
+        </div>
+
+        <Card className="border-border/50 shadow-card backdrop-blur-sm">
+          <CardHeader className="space-y-4">
+            <CardTitle className="text-2xl font-display text-white text-center">
+              Ticket Registration
+            </CardTitle>
+            <CardDescription className="text-center text-gray-500 text-base">
+              {!selectedPackage
+                ? "Select your package to continue"
+                : "Fill in your details to receive your exclusive QR code ticket"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {selectedPackage && (
+              <button
+                onClick={() => setSelectedPackage(null)}
+                className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6 group"
+              >
+                <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                <span>Back to packages</span>
+              </button>
+            )}
+
+            {!selectedPackage ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <button
+                  onClick={() => setSelectedPackage("single")}
+                  className="group relative overflow-hidden rounded-lg border-2 border-border hover:border-primary p-8 transition-all duration-300 hover:shadow-[0_0_40px_rgba(210,58,31,0.35)]"
+                >
+                  <div className="flex flex-col items-center space-y-4">
+                    <div className="rounded-full bg-primary/10 p-6 group-hover:bg-primary/20 transition-colors">
+                      <User className="w-12 h-12 text-primary" />
+                    </div>
+                    <h3 className="font-display text-white text-2xl">Single</h3>
+                    <p className="text-gray-500 text-center">
+                      Perfect for solo adventurers
+                    </p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => setSelectedPackage("couple")}
+                  className="group relative overflow-hidden rounded-lg border-2 border-border hover:border-accent p-8 transition-all duration-300 hover:shadow-[0_0_40px_rgba(255,76,36,0.35)]"
+                >
+                  <div className="flex flex-col items-center space-y-4">
+                    <div className="rounded-full bg-accent/10 p-6 group-hover:bg-accent/20 transition-colors">
+                      <Users className="w-12 h-12 text-accent" />
+                    </div>
+                    <h3 className="font-display text-white couple text-2xl">
+                      Couple
+                    </h3>
+                    <p className="text-gray-500 text-center">
+                      Share the experience together
+                    </p>
+                  </div>
+                </button>
+              </div>
+            ) : selectedPackage === "single" ? (
+              <form
+                onSubmit={singleForm.handleSubmit(onSubmitSingle)}
+                className="space-y-6"
+              >
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="fullName"
+                    className="text-sm text-white font-medium"
+                  >
+                    Full Name
+                  </Label>
+                  <Input
+                    id="fullName"
+                    placeholder="Enter your full name"
+                    {...singleForm.register("fullName")}
+                    className={
+                      singleForm.formState.errors.fullName
+                        ? "border-destructive"
+                        : ""
+                    }
+                  />
+                  {singleForm.formState.errors.fullName && (
+                    <p className="text-sm text-destructive">
+                      {singleForm.formState.errors.fullName.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="phone"
+                    className="text-sm text-white font-medium"
+                  >
+                    Phone Number
+                  </Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="+1 (555) 000-0000"
+                    {...singleForm.register("phone")}
+                    className={
+                      singleForm.formState.errors.phone
+                        ? "border-destructive"
+                        : ""
+                    }
+                  />
+                  {singleForm.formState.errors.phone && (
+                    <p className="text-sm text-destructive">
+                      {singleForm.formState.errors.phone.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="singleNationalId"
+                    className="text-sm font-medium text-white"
+                  >
+                    Egyptian National ID
+                  </Label>
+                  <Input
+                    id="singleNationalId"
+                    placeholder="14-digit Egyptian ID"
+                    inputMode="numeric"
+                    {...singleForm.register("nationalId")}
+                    className={
+                      singleForm.formState.errors.nationalId
+                        ? "border-destructive"
+                        : ""
+                    }
+                  />
+                  {singleForm.formState.errors.nationalId && (
+                    <p className="text-sm text-destructive">
+                      {singleForm.formState.errors.nationalId.message}
+                    </p>
+                  )}
+                  {singleGenderInfo.error && (
+                    <p className="text-xs text-destructive">
+                      {singleGenderInfo.error}
+                    </p>
+                  )}
+                  {singleGenderInfo.gender && (
+                    <p className="text-xs text-muted-foreground">
+                      Detected gender:{" "}
+                      {singleGenderInfo.gender === "male" ? "Male" : "Female"}
+                    </p>
+                  )}
+                  {singleGenderInfo.gender && selectedPackage === "single" && (
+                    <p className="text-xs text-muted-foreground">
+                      Ensure the selected package matches the detected gender.
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="email"
+                    className="text-sm text-white font-medium"
+                  >
+                    Email Address
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="your.email@example.com"
+                    {...singleForm.register("email")}
+                    className={
+                      singleForm.formState.errors.email
+                        ? "border-destructive"
+                        : ""
+                    }
+                  />
+                  {singleForm.formState.errors.email && (
+                    <p className="text-sm text-destructive">
+                      {singleForm.formState.errors.email.message}
+                    </p>
+                  )}
+                </div>
+
+                <Button
+                  type="submit"
+                  variant="premium"
+                  size="lg"
+                  className="w-full h-14 text-xs"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Processing..." : "Register & Get Ticket"}
+                </Button>
+              </form>
+            ) : (
+              <form
+                onSubmit={coupleForm.handleSubmit(onSubmitCouple)}
+                className="space-y-8"
+              >
+                <div className="space-y-6">
+                  <h3 className="font-display  text-xl  text-[#a22e1f]">
+                    Person 1
+                  </h3>
+
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="fullName1"
+                      className="text-sm text-white font-medium"
+                    >
+                      Full Name
+                    </Label>
+                    <Input
+                      id="fullName1"
+                      placeholder="Enter full name"
+                      {...coupleForm.register("fullName1")}
+                      className={
+                        coupleForm.formState.errors.fullName1
+                          ? "border-destructive"
+                          : ""
+                      }
+                    />
+                    {coupleForm.formState.errors.fullName1 && (
+                      <p className="text-sm text-destructive">
+                        {coupleForm.formState.errors.fullName1.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="phone1"
+                      className=" text-white text-sm font-medium"
+                    >
+                      Phone Number
+                    </Label>
+                    <Input
+                      id="phone1"
+                      type="tel"
+                      placeholder="+1 (555) 000-0000"
+                      {...coupleForm.register("phone1")}
+                      className={
+                        coupleForm.formState.errors.phone1
+                          ? "border-destructive"
+                          : ""
+                      }
+                    />
+                    {coupleForm.formState.errors.phone1 && (
+                      <p className="text-sm text-destructive">
+                        {coupleForm.formState.errors.phone1.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="email1"
+                      className=" text-white text-sm font-medium"
+                    >
+                      Email Address
+                    </Label>
+                    <Input
+                      id="email1"
+                      type="email"
+                      placeholder="email@example.com"
+                      {...coupleForm.register("email1")}
+                      className={
+                        coupleForm.formState.errors.email1
+                          ? "border-destructive"
+                          : ""
+                      }
+                    />
+                    {coupleForm.formState.errors.email1 && (
+                      <p className="text-sm text-destructive">
+                        {coupleForm.formState.errors.email1.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="nationalId1"
+                      className="text-sm text-white font-medium"
+                    >
+                      Egyptian National ID (Male)
+                    </Label>
+                    <Input
+                      id="nationalId1"
+                      placeholder="14-digit Egyptian ID"
+                      inputMode="numeric"
+                      {...coupleForm.register("nationalId1")}
+                      className={
+                        coupleForm.formState.errors.nationalId1
+                          ? "border-destructive"
+                          : ""
+                      }
+                    />
+                    {coupleForm.formState.errors.nationalId1 && (
+                      <p className="text-sm text-destructive">
+                        {coupleForm.formState.errors.nationalId1.message}
+                      </p>
+                    )}
+                    {maleGenderInfo.error && (
+                      <p className="text-xs text-destructive">
+                        {maleGenderInfo.error}
+                      </p>
+                    )}
+                    {maleGenderInfo.gender &&
+                      maleGenderInfo.gender !== "male" && (
+                        <p className="text-xs text-destructive">
+                          Male national ID required.
+                        </p>
+                      )}
+                    {maleGenderInfo.gender === "male" && (
+                      <p className="text-xs text-muted-foreground">
+                        Detected gender: Male
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <h3 className="font-display text-xl text-[#a22e1f] ">
+                    Person 2
+                  </h3>
+
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="fullName2"
+                      className="text-sm text-white font-medium"
+                    >
+                      Full Name
+                    </Label>
+                    <Input
+                      id="fullName2"
+                      placeholder="Enter full name"
+                      {...coupleForm.register("fullName2")}
+                      className={
+                        coupleForm.formState.errors.fullName2
+                          ? "border-destructive"
+                          : ""
+                      }
+                    />
+                    {coupleForm.formState.errors.fullName2 && (
+                      <p className="text-sm text-destructive">
+                        {coupleForm.formState.errors.fullName2.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="phone2"
+                      className=" text-white text-sm font-medium"
+                    >
+                      Phone Number
+                    </Label>
+                    <Input
+                      id="phone2"
+                      type="tel"
+                      placeholder="+1 (555) 000-0000"
+                      {...coupleForm.register("phone2")}
+                      className={
+                        coupleForm.formState.errors.phone2
+                          ? "border-destructive"
+                          : ""
+                      }
+                    />
+                    {coupleForm.formState.errors.phone2 && (
+                      <p className="text-sm text-destructive">
+                        {coupleForm.formState.errors.phone2.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="email2"
+                      className="text-sm text-white font-medium"
+                    >
+                      Email Address
+                    </Label>
+                    <Input
+                      id="email2"
+                      type="email"
+                      placeholder="email@example.com"
+                      {...coupleForm.register("email2")}
+                      className={
+                        coupleForm.formState.errors.email2
+                          ? "border-destructive"
+                          : ""
+                      }
+                    />
+                    {coupleForm.formState.errors.email2 && (
+                      <p className="text-sm text-destructive">
+                        {coupleForm.formState.errors.email2.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="nationalId2"
+                      className="text-sm text-white font-medium"
+                    >
+                      Egyptian National ID (Female)
+                    </Label>
+                    <Input
+                      id="nationalId2"
+                      placeholder="14-digit Egyptian ID"
+                      inputMode="numeric"
+                      {...coupleForm.register("nationalId2")}
+                      className={
+                        coupleForm.formState.errors.nationalId2
+                          ? "border-destructive"
+                          : ""
+                      }
+                    />
+                    {coupleForm.formState.errors.nationalId2 && (
+                      <p className="text-sm text-destructive">
+                        {coupleForm.formState.errors.nationalId2.message}
+                      </p>
+                    )}
+                    {femaleGenderInfo.error && (
+                      <p className="text-xs text-destructive">
+                        {femaleGenderInfo.error}
+                      </p>
+                    )}
+                    {femaleGenderInfo.gender &&
+                      femaleGenderInfo.gender !== "female" && (
+                        <p className="text-xs text-destructive">
+                          Female national ID required.
+                        </p>
+                      )}
+                    {femaleGenderInfo.gender === "female" && (
+                      <p className="text-xs text-muted-foreground">
+                        Detected gender: Female
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  variant="premium"
+                  size="lg"
+                  className="w-full h-14 text-xs"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Processing..." : "Register & Get Tickets"}
+                </Button>
+              </form>
+            )}
+
+            {selectedPackage && (
+              <p className="text-center text-sm text-muted-foreground mt-6 leading-relaxed">
+                After completing payment, you'll receive an email with your QR
+                code ticket{selectedPackage === "couple" ? "s" : ""}.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </section>
+  );
+};
