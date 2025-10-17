@@ -115,7 +115,7 @@ async function recordEmailLog({
 }) {
   try {
     await EmailLog.create({
-      ticket: ticketId || undefined,
+      ticketId: ticketId || undefined,
       to,
       template,
       status,

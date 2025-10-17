@@ -95,9 +95,11 @@ async function manualRegistration(req, res) {
     if (packageType === "couple") {
       const genders = attendees.map((a) => a.gender);
       if (!(genders.includes("male") && genders.includes("female"))) {
-        return res.status(400).json({
-          message: "Couples package requires one male and one female.",
-        });
+        return res
+          .status(400)
+          .json({
+            message: "Couples package requires one male and one female.",
+          });
       }
       // Ensure the two attendees are distinct and not using the same identifiers
       if (attendees[0].nationalId === attendees[1].nationalId) {
@@ -125,23 +127,24 @@ async function manualRegistration(req, res) {
       "attendees.nationalId": { $in: nationalIds },
     });
     if (existing) {
-      return res.status(409).json({
-        message: "A ticket already exists for one of the national IDs.",
-      });
+      return res
+        .status(409)
+        .json({
+          message: "A ticket already exists for one of the national IDs.",
+        });
     }
 
     const ticketId = generateTicketId();
     const ticket = await Ticket.create({
       ticketId,
       packageType,
-      contactEmail: contactEmail, // Now a string, not an array
+      contactEmail: contactEmail, // string
       paymentNote: paymentNote || undefined,
       attendees,
       status: "pending_manual_payment",
     });
 
     // QR email will be sent after payment confirmation
-
     return res
       .status(201)
       .json({ ticketId: ticket.ticketId, status: ticket.status });
@@ -257,6 +260,11 @@ async function verifyTicket(req, res) {
   }
 }
 
+/**
+ * Mark ticket as paid and email each attendee a personalized QR.
+ * - Attaches QR as a CID image so it renders inline across Gmail/Outlook.
+ * - Also passes base64 as a fallback for templates that still embed data URIs.
+ */
 async function markAsPaid(req, res) {
   try {
     const { ticketId } = req.params;
@@ -288,7 +296,7 @@ async function markAsPaid(req, res) {
     for (const a of ticket.attendees || []) {
       if (!a || !a.email) continue;
 
-      // Build per-attendee payload so each QR is unique to the person
+      // Per-attendee payload so each QR is unique to the person
       const attendeePayload = {
         ticketId: ticket.ticketId,
         nationalId: a.nationalId,
@@ -296,6 +304,7 @@ async function markAsPaid(req, res) {
 
       const qrBuffer = await QRCode.toBuffer(JSON.stringify(attendeePayload));
       const qrBase64 = qrBuffer.toString("base64");
+      const qrCid = `ticket-qr-${ticket.ticketId}-${a.nationalId}`;
 
       await sendEmail({
         to: a.email,
@@ -306,11 +315,21 @@ async function markAsPaid(req, res) {
           packageType: ticket.packageType,
           attendees: ticket.attendees,
           paymentUrl,
-          qrBase64, // unique per attendee
+          // Support both implementations:
+          qrBase64, // for templates that embed data: URLs
+          qrCid, // for templates that reference cid: URLs
         }),
         template: "payment-confirmation",
         ticketId: ticket.ticketId,
         metadata: { status: "paid", nationalId: a.nationalId, to: a.email },
+        attachments: [
+          {
+            filename: "ticket-qr.png",
+            content: qrBuffer,
+            contentType: "image/png",
+            cid: qrCid, // inline image
+          },
+        ],
       });
 
       sentTo.push(a.email);
