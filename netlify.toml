@@ -1,8 +1,13 @@
 [build]
-  base = "midnight-madness-landing/Client"
+  base = "Client"
   publish = "dist"
   command = "npm ci --include=dev && npm run build"
 
 [build.environment]
-  NODE_VERSION = "20"
-  NPM_CONFIG_PRODUCTION = "false"  # ensure devDependencies (vite) are installed
+  NODE_VERSION = "20.19.0"
+  NPM_FLAGS = "--include=dev"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
