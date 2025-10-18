@@ -95,11 +95,9 @@ async function manualRegistration(req, res) {
     if (packageType === "couple") {
       const genders = attendees.map((a) => a.gender);
       if (!(genders.includes("male") && genders.includes("female"))) {
-        return res
-          .status(400)
-          .json({
-            message: "Couples package requires one male and one female.",
-          });
+        return res.status(400).json({
+          message: "Couples package requires one male and one female.",
+        });
       }
       // Ensure the two attendees are distinct and not using the same identifiers
       if (attendees[0].nationalId === attendees[1].nationalId) {
@@ -119,26 +117,27 @@ async function manualRegistration(req, res) {
       }
     }
 
-    // Build contactEmail as a STRING (use first attendee's email)
-    const contactEmail = attendees[0].email;
+    // Build contactEmails array (primary) and keep a single contactEmail for back-compat
+    const contactEmails = attendees.map((a) => a.email);
 
     const nationalIds = attendees.map((a) => a.nationalId);
     const existing = await Ticket.findOne({
       "attendees.nationalId": { $in: nationalIds },
     });
     if (existing) {
-      return res
-        .status(409)
-        .json({
-          message: "A ticket already exists for one of the national IDs.",
-        });
+      return res.status(409).json({
+        message: "A ticket already exists for one of the national IDs.",
+      });
     }
 
     const ticketId = generateTicketId();
     const ticket = await Ticket.create({
       ticketId,
       packageType,
-      contactEmail: contactEmail, // string
+      // New canonical array field (schema should define this)
+      contactEmails,
+      // Backward-compat: older schema may still require a single string field
+      contactEmail: contactEmails[0],
       paymentNote: paymentNote || undefined,
       attendees,
       status: "pending_manual_payment",
@@ -197,6 +196,7 @@ async function listPendingTickets(req, res) {
         $or: [
           { ticketId: regex },
           { contactEmail: regex },
+          { contactEmails: regex },
           { "attendees.fullName": regex },
           { "attendees.email": regex },
           { "attendees.phone": regex },
@@ -222,6 +222,7 @@ async function listPaidTickets(req, res) {
     criteria.$or = [
       { ticketId: regex },
       { contactEmail: regex },
+      { contactEmails: regex },
       { "attendees.fullName": regex },
       { "attendees.email": regex },
       { "attendees.phone": regex },
@@ -296,41 +297,58 @@ async function markAsPaid(req, res) {
     for (const a of ticket.attendees || []) {
       if (!a || !a.email) continue;
 
-      // Per-attendee payload so each QR is unique to the person
+      // Per-attendee payload so each QR is unique to the person & contains full details
       const attendeePayload = {
+        v: 1, // version for future-proofing
         ticketId: ticket.ticketId,
-        nationalId: a.nationalId,
+        packageType: ticket.packageType,
+        attendee: {
+          fullName: a.fullName,
+          email: a.email,
+          phone: a.phone,
+          nationalId: a.nationalId,
+          gender: a.gender,
+        },
+        status: ticket.status,
       };
 
       const qrBuffer = await QRCode.toBuffer(JSON.stringify(attendeePayload));
       const qrBase64 = qrBuffer.toString("base64");
       const qrCid = `ticket-qr-${ticket.ticketId}-${a.nationalId}`;
 
-      await sendEmail({
-        to: a.email,
-        subject: "Your QR Ticket – Clear Vision",
-        html: buildPaymentConfirmationEmail({
-          name: a.fullName || "Guest",
+      try {
+        await sendEmail({
+          to: a.email,
+          subject: "Your QR Ticket – Clear Vision",
+          html: buildPaymentConfirmationEmail({
+            name: a.fullName || "Guest",
+            ticketId: ticket.ticketId,
+            packageType: ticket.packageType,
+            attendees: ticket.attendees,
+            paymentUrl,
+            // Support both implementations:
+            qrBase64, // for templates that embed data: URLs
+            qrCid, // for templates that reference cid: URLs
+          }),
+          template: "payment-confirmation",
           ticketId: ticket.ticketId,
-          packageType: ticket.packageType,
-          attendees: ticket.attendees,
-          paymentUrl,
-          // Support both implementations:
-          qrBase64, // for templates that embed data: URLs
-          qrCid, // for templates that reference cid: URLs
-        }),
-        template: "payment-confirmation",
-        ticketId: ticket.ticketId,
-        metadata: { status: "paid", nationalId: a.nationalId, to: a.email },
-        attachments: [
-          {
-            filename: "ticket-qr.png",
-            content: qrBuffer,
-            contentType: "image/png",
-            cid: qrCid, // inline image
-          },
-        ],
-      });
+          metadata: { status: "paid", nationalId: a.nationalId, to: a.email },
+          attachments: [
+            {
+              filename: "ticket-qr.png",
+              content: qrBuffer,
+              contentType: "image/png",
+              cid: qrCid, // inline image
+            },
+          ],
+        });
+      } catch (emailErr) {
+        console.warn(
+          "Email send failed for",
+          a.email,
+          emailErr?.message || emailErr
+        );
+      }
 
       sentTo.push(a.email);
     }
@@ -338,12 +356,10 @@ async function markAsPaid(req, res) {
     return res.json({ ok: true, sentTo, alreadyPaid: wasPaid });
   } catch (error) {
     console.error("markAsPaid error", error);
-    return res
-      .status(500)
-      .json({
-        message: "Failed to mark paid & send email.",
-        error: error.message,
-      });
+    return res.status(500).json({
+      message: "Failed to mark paid & send email.",
+      error: error.message,
+    });
   }
 }
 

@@ -1,28 +1,35 @@
-// netlify/functions/api.js
-const serverlessHttp = require("serverless-http");
+// server/netlify/functions/api.js
+// CommonJS-only Netlify Function wrapper around your Express app
+
+const serverless = require("serverless-http");
 const express = require("express");
 const cors = require("cors");
-const helmet = require("helmet");
+// ⚠️ Remove helmet (ESM-only in v7+) to avoid "Unexpected token export"
+// If you really want some security headers, add a tiny CJS middleware below.
 const mongoose = require("mongoose");
-
-// IMPORTANT: all your route files must also use CommonJS (module.exports / require)
-const ticketRoutes = require("../../routes/tickets");
-const publicRoutes = require("../../routes/public");
-const adminVerifyRoutes = require("../../routes/adminVerify");
 
 const app = express();
 
-// Basic hardening
+// --- minimal headers instead of helmet (CJS-safe) ---
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  // Disable the deprecated X-XSS-Protection header in modern browsers
+  res.setHeader("X-XSS-Protection", "0");
+  next();
+});
+
+// Trust proxy / disable etag for functions
 app.set("trust proxy", 1);
 app.set("etag", false);
-app.use(helmet());
 
-// CORS (relax for now; tighten later)
+// Broad CORS for the function (you can tighten later)
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// --- Mongo connection with reuse across invocations ---
+// ---- Mongo connection cache (CJS safe) ----
 let cachedDb = null;
 async function connectToDatabase() {
   if (cachedDb && mongoose.connection.readyState === 1) return cachedDb;
@@ -43,17 +50,27 @@ async function connectToDatabase() {
   }
 }
 
+// ---- Import ONLY CommonJS modules here ----
+// Make sure these files use require/module.exports (NO `export`/`import`)
+const ticketRoutes = require("../../routes/tickets");
+const publicRoutes = require("../../routes/public");
+const adminVerifyRoutes = require("../../routes/adminVerify");
+
 // Debug
 app.use((req, _res, next) => {
-  console.log("Incoming:", req.method, req.url);
+  console.log("Incoming request:", req.method, req.url);
   next();
 });
 
-// Health
-app.get("/health", (_req, res) => res.json({ status: "ok" }));
-app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
+// Health checks
+app.get("/health", (_req, res) =>
+  res.json({ status: "ok", message: "API is running" })
+);
+app.get("/api/health", (_req, res) =>
+  res.json({ status: "ok", message: "API is running" })
+);
 
-// Your API (we keep `/api` here; Netlify redirect will map /api/* → this function)
+// Mount routers under /api to match your redirects
 app.use("/api", publicRoutes);
 app.use("/api/admin", adminVerifyRoutes);
 app.use("/api/tickets", ticketRoutes);
@@ -62,7 +79,7 @@ app.use("/api/tickets", ticketRoutes);
 app.use((req, res) => {
   res
     .status(404)
-    .json({ message: "Route not found.", path: req.path, url: req.url });
+    .json({ message: "Route not found.", path: req.path, method: req.method });
 });
 
 // Error handler
@@ -73,14 +90,10 @@ app.use((err, _req, res, _next) => {
     .json({ message: "Unexpected server error.", details: err.message });
 });
 
-// Build serverless handler (rename to avoid confusion)
-const appHandler = serverlessHttp(app);
+const handler = serverless(app);
 
-// Export handler for Netlify (CommonJS)
-module.exports.handler = async (event, context) => {
-  // Re-use DB connection between warm invocations
+exports.handler = async (event, context) => {
   context.callbackWaitsForEmptyEventLoop = false;
-
   await connectToDatabase();
-  return appHandler(event, context);
+  return handler(event, context);
 };
