@@ -286,7 +286,7 @@ export const RegistrationForm = () => {
   }
 
   return (
-    <section id="register" className="py-24 px-4 bg-background">
+    <section id="register" className="py-24 my-10 px-4 bg-background">
       <div className="container mx-auto max-w-2xl">
         <div className="text-center mb-12">
           <h2 className=" text-white text-4xl md:text-5xl mb-4">
@@ -298,8 +298,8 @@ export const RegistrationForm = () => {
         </div>
 
         <Card className="border-border/50 shadow-card backdrop-blur-sm">
-          <CardHeader className="space-y-4">
-            <CardTitle className="text-2xl font-display text-white text-center">
+          <CardHeader className="space-y-2">
+            <CardTitle className="text-xl font-display text-white text-center">
               Ticket Registration
             </CardTitle>
             <CardDescription className="text-center text-gray-500 text-base">

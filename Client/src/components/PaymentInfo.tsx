@@ -113,7 +113,7 @@ export const PaymentInfo = () => {
               <div className="space-y-3">
                 <div className="relative">
                   <div className="relative bg-secondary/80 backdrop-blur-sm rounded-lg py-3 sm:py-4 border border-border/50">
-                    <p className="text-sm sm:text-base lg:text-lg font-mono text-foreground tracking-wider text-center">
+                    <p className="text-xs sm:text-base lg:text-lg font-mono text-foreground tracking-wider text-center">
                       {vodafoneNumber}
                     </p>
                   </div>
