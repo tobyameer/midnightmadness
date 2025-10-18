@@ -251,6 +251,165 @@ async function getTicketStats(req, res) {
   }
 }
 
+/**
+ * Manual registration endpoint
+ */
+async function manualRegistration(req, res) {
+  try {
+    const { packageType, contactEmail, attendees } = req.body;
+
+    if (
+      !packageType ||
+      !contactEmail ||
+      !attendees ||
+      !Array.isArray(attendees)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Missing required fields: packageType, contactEmail, attendees",
+      });
+    }
+
+    // Create ticket
+    const ticket = new Ticket({
+      packageType,
+      contactEmail,
+      attendees,
+      status: "pending_manual_payment",
+    });
+
+    await ticket.save();
+
+    return res.json({
+      success: true,
+      ticketId: ticket._id,
+      status: ticket.status,
+    });
+  } catch (error) {
+    console.error("Manual registration error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to register ticket",
+    });
+  }
+}
+
+/**
+ * List pending tickets
+ */
+async function listPendingTickets(req, res) {
+  try {
+    const tickets = await Ticket.find({ status: "pending_manual_payment" })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.json({
+      success: true,
+      tickets,
+      count: tickets.length,
+    });
+  } catch (error) {
+    console.error("List pending tickets error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch pending tickets",
+    });
+  }
+}
+
+/**
+ * List paid tickets
+ */
+async function listPaidTickets(req, res) {
+  try {
+    const tickets = await Ticket.find({ status: "active" })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.json({
+      success: true,
+      tickets,
+      count: tickets.length,
+    });
+  } catch (error) {
+    console.error("List paid tickets error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch paid tickets",
+    });
+  }
+}
+
+/**
+ * Verify ticket
+ */
+async function verifyTicket(req, res) {
+  try {
+    const { ticketId } = req.body;
+
+    if (!ticketId) {
+      return res.status(400).json({
+        success: false,
+        message: "Ticket ID is required",
+      });
+    }
+
+    const ticket = await Ticket.findOne({ _id: ticketId, status: "active" });
+
+    if (!ticket) {
+      return res.status(404).json({
+        success: false,
+        message: "Ticket not found or not active",
+      });
+    }
+
+    return res.json({
+      success: true,
+      ticket,
+    });
+  } catch (error) {
+    console.error("Verify ticket error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to verify ticket",
+    });
+  }
+}
+
+/**
+ * Mark ticket as paid
+ */
+async function markAsPaid(req, res) {
+  try {
+    const { ticketId } = req.params;
+
+    const ticket = await Ticket.findById(ticketId);
+
+    if (!ticket) {
+      return res.status(404).json({
+        success: false,
+        message: "Ticket not found",
+      });
+    }
+
+    ticket.status = "active";
+    await ticket.save();
+
+    return res.json({
+      success: true,
+      message: "Ticket marked as paid",
+      ticket,
+    });
+  } catch (error) {
+    console.error("Mark as paid error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to mark ticket as paid",
+    });
+  }
+}
+
 module.exports = {
   getAllTickets,
   getTicketById,
@@ -258,4 +417,9 @@ module.exports = {
   checkInTicket,
   deleteTicket,
   getTicketStats,
+  manualRegistration,
+  listPendingTickets,
+  listPaidTickets,
+  verifyTicket,
+  markAsPaid,
 };

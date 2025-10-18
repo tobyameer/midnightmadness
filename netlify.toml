@@ -1,7 +1,13 @@
 [build]
-  command = "npm run build"
+  base    = "Client"
   publish = "dist"
-  functions = "admin-server/netlify/functions"
+  # Use npm install (safer if no package-lock.json present)
+  command = "npm install && npm run build"
+
+# If THIS site should also run your Netlify Functions, point to them relative to base.
+# Remove this block if you are not deploying functions with this site.
+[functions]
+  directory = "../admin-server/netlify/functions"
 
 [[redirects]]
   from = "/api/*"
