@@ -4,6 +4,7 @@
   command = "npm ci --include=dev && npm run build && npm --prefix ../server ci"
 
 [functions]
+  # NOTE: path is relative to the base; "../server" is correct here
   directory = "../server/netlify/functions"
   node_bundler = "esbuild"
 
