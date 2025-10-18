@@ -1,31 +1,24 @@
-// server/utils/egyptId.js
-// CommonJS helpers for Egyptian National ID validation + gender detection
-
+// /server/utils/egyptId.js (CommonJS)
 function getEgyptianIdGender(id) {
   if (typeof id !== "string") return "invalid";
   const s = id.trim();
   if (!/^\d{14}$/.test(s)) return "invalid";
-  // 13th digit (index 12): odd = male, even = female
-  const digit = Number(s[12]);
+  const digit = Number(s[12]); // 13th digit: odd=male, even=female
   if (Number.isNaN(digit)) return "invalid";
   return digit % 2 === 0 ? "female" : "male";
 }
 
 function validateEgyptianId(id) {
   const errors = [];
-  if (typeof id !== "string") {
-    return { valid: false, errors: ["ID must be a string"] };
-  }
+  if (typeof id !== "string") return { valid: false, errors: ["ID must be a string"] };
 
   const s = id.trim();
   if (!/^\d{14}$/.test(s)) {
     return { valid: false, errors: ["National ID must be exactly 14 digits."] };
   }
 
-  const century = Number(s[0]); // 2 = 1900s, 3 = 2000s
-  if (century !== 2 && century !== 3) {
-    errors.push("Invalid century digit.");
-  }
+  const century = Number(s[0]); // 2=1900s, 3=2000s
+  if (century !== 2 && century !== 3) errors.push("Invalid century digit.");
 
   const year = Number(s.slice(1, 3));
   const month = Number(s.slice(3, 5));
@@ -34,18 +27,11 @@ function validateEgyptianId(id) {
 
   const dt = new Date(fullYear, month - 1, day);
   const validDate =
-    dt.getFullYear() === fullYear &&
-    dt.getMonth() === month - 1 &&
-    dt.getDate() === day;
-
-  if (!validDate) {
-    errors.push("Invalid birth date in national ID.");
-  }
+    dt.getFullYear() === fullYear && dt.getMonth() === month - 1 && dt.getDate() === day;
+  if (!validDate) errors.push("Invalid birth date in national ID.");
 
   const gender = getEgyptianIdGender(s);
-  if (gender === "invalid") {
-    errors.push("Could not detect gender from national ID.");
-  }
+  if (gender === "invalid") errors.push("Could not detect gender from national ID.");
 
   return {
     valid: errors.length === 0,

@@ -1,37 +1,18 @@
 [build]
   base = "Client"
   publish = "dist"
-  # Build the client, then install server deps so functions can bundle
-  command = "npm ci --include=dev && npm run build && npm --prefix ../server ci"
+  command = "npm ci && npm run build && npm --prefix ../server ci"
 
 [functions]
   directory = "../server/netlify/functions"
   node_bundler = "esbuild"
-  included_files = [
-    "../server/routes/**",
-    "../server/models/**",
-    "../server/utils/**",
-    "../server/middleware/**",
-    "../server/*.js"
-  ]
 
-[build.environment]
-  NODE_VERSION = "20"
-
-# API → serverless function
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
   status = 200
 
-# SPA fallback
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-
-# Dev proxy to Vite on 5173, and let Netlify start it
-[dev]
-  command = "npm run dev --prefix Client"
-  targetPort = 5173
-  framework = "vite"

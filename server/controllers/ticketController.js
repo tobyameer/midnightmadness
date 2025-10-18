@@ -118,7 +118,25 @@ async function manualRegistration(req, res) {
     }
 
     // Build contactEmails array (primary) and keep a single contactEmail for back-compat
-    const contactEmails = attendees.map((a) => a.email);
+    const providedContacts = [];
+    if (Array.isArray(req.body.contactEmails)) {
+      providedContacts.push(...req.body.contactEmails);
+    }
+    if (req.body.contactEmail) {
+      providedContacts.push(req.body.contactEmail);
+    }
+    const contactEmails = [
+      ...new Set(
+        [...providedContacts, ...attendees.map((a) => a.email)]
+          .map((e) =>
+            String(e || "")
+              .toLowerCase()
+              .trim()
+          )
+          .filter(Boolean)
+      ),
+    ];
+    const legacyContactEmail = contactEmails[0] || undefined;
 
     const nationalIds = attendees.map((a) => a.nationalId);
     const existing = await Ticket.findOne({
@@ -137,7 +155,7 @@ async function manualRegistration(req, res) {
       // New canonical array field (schema should define this)
       contactEmails,
       // Backward-compat: older schema may still require a single string field
-      contactEmail: contactEmails[0],
+      contactEmail: legacyContactEmail,
       paymentNote: paymentNote || undefined,
       attendees,
       status: "pending_manual_payment",

@@ -1,17 +1,23 @@
-const express = require('express');
+const express = require("express");
 const {
   manualRegistration,
   listPendingTickets,
   listPaidTickets,
   verifyTicket,
-} = require('../controllers/ticketController');
-const adminAuth = require('../middleware/adminAuth');
+  markAsPaid,
+} = require("../controllers/ticketController");
 
 const router = express.Router();
 
-router.post('/manual', manualRegistration);
-router.get('/pending', adminAuth, listPendingTickets);
-router.get('/paid', adminAuth, listPaidTickets);
-router.post('/verify', verifyTicket);
+// Public/manual endpoints
+router.post("/manual", manualRegistration);
+router.post("/verify", verifyTicket);
+
+// Admin list (you can wrap these with admin auth later)
+router.get("/pending", listPendingTickets);
+router.get("/paid", listPaidTickets);
+
+// Admin action
+router.post("/:ticketId/mark-paid", markAsPaid);
 
 module.exports = router;

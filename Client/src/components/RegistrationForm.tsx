@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { User, Users, ArrowLeft } from "lucide-react";
 import { PaymentInfo } from "./PaymentInfo";
-import { getEgyptianIdGender } from "@shared/egyptId";
+import { getEgyptianIdGender } from "@/shared/egyptId";
 import { submitManualPaymentTicket } from "@/lib/api";
 
 const singleSchema = z.object({

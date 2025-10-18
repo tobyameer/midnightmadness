@@ -1,7 +1,5 @@
 const mongoose = require("mongoose");
 
-// ---------- Sub-schemas ----------
-
 const attendeeSchema = new mongoose.Schema(
   {
     fullName: { type: String, required: true, trim: true },
@@ -25,15 +23,11 @@ const paymentHistorySchema = new mongoose.Schema(
   { _id: false }
 );
 
-// ---------- Ticket schema ----------
-
 const ticketSchema = new mongoose.Schema(
   {
     ticketId: { type: String, unique: true, index: true, required: true },
-
     packageType: { type: String, enum: ["single", "couple"], required: true },
 
-    // Canonical array of contact emails (use this everywhere going forward)
     contactEmails: {
       type: [String],
       required: true,
@@ -51,7 +45,7 @@ const ticketSchema = new mongoose.Schema(
       index: true,
     },
 
-    // Legacy single email for back-compat. OPTIONAL now.
+    // legacy single email (optional)
     contactEmail: { type: String, lowercase: true, trim: true, index: true },
 
     paymentNote: { type: String, trim: true },
@@ -63,18 +57,13 @@ const ticketSchema = new mongoose.Schema(
           if (!Array.isArray(attendees)) return false;
 
           if (this.packageType === "single") {
-            return (
-              attendees.length === 1 &&
-              ["male", "female"].includes(attendees[0]?.gender)
-            );
+            return attendees.length === 1 && ["male", "female"].includes(attendees[0]?.gender);
           }
-
           if (this.packageType === "couple") {
             if (attendees.length !== 2) return false;
             const genders = attendees.map((a) => a.gender);
             return genders.includes("male") && genders.includes("female");
           }
-
           return false;
         },
         message: "Attendees do not match package requirements.",
@@ -100,48 +89,23 @@ const ticketSchema = new mongoose.Schema(
 
     createdAt: { type: Date, default: Date.now },
   },
-  {
-    minimize: false,
-  }
+  { minimize: false }
 );
 
-// ---------- Hooks & virtuals ----------
-
-// Ensure contactEmails is populated from legacy/contact/attendees and de-duplicated
 ticketSchema.pre("validate", function (next) {
-  let emails = Array.isArray(this.contactEmails)
-    ? this.contactEmails.slice()
-    : [];
-
-  // include legacy single email if present
-  if (this.contactEmail) {
-    emails.push(String(this.contactEmail).toLowerCase().trim());
-  }
-
-  // include attendee emails
+  let emails = Array.isArray(this.contactEmails) ? this.contactEmails.slice() : [];
+  if (this.contactEmail) emails.push(String(this.contactEmail).toLowerCase().trim());
   if (Array.isArray(this.attendees)) {
     for (const a of this.attendees) {
-      if (a && a.email) {
-        emails.push(String(a.email).toLowerCase().trim());
-      }
+      if (a && a.email) emails.push(String(a.email).toLowerCase().trim());
     }
   }
-
-  // de-duplicate / clean
   emails = [...new Set(emails.filter(Boolean))];
-
-  // write back
   this.contactEmails = emails;
-
-  // keep legacy field populated for older code paths
-  if (!this.contactEmail && emails.length) {
-    this.contactEmail = emails[0];
-  }
-
+  if (!this.contactEmail && emails.length) this.contactEmail = emails[0];
   next();
 });
 
-// All unique recipient emails (contact + attendees)
 ticketSchema.virtual("recipientEmails").get(function () {
   const emails = [];
   if (Array.isArray(this.contactEmails)) emails.push(...this.contactEmails);
@@ -153,6 +117,4 @@ ticketSchema.virtual("recipientEmails").get(function () {
   return [...new Set(emails.filter(Boolean))];
 });
 
-// ---------- Export (safe for hot reload / serverless) ----------
-module.exports =
-  mongoose.models.Ticket || mongoose.model("Ticket", ticketSchema);
+module.exports = mongoose.models.Ticket || mongoose.model("Ticket", ticketSchema);

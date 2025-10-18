@@ -1,16 +1,8 @@
-const express = require('express');
-const { buildPublicPricingSnapshot } = require('../config/pricing');
-const { buildClientRuntimeConfig } = require('../config/runtime');
-
+const express = require("express");
 const router = express.Router();
 
-router.get('/api/public/pricing', (_req, res) => {
-  res.json(buildClientRuntimeConfig());
-});
-
-// Backwards compatibility for older clients.
-router.get('/api/public/config', (_req, res) => {
-  res.json(buildPublicPricingSnapshot());
+router.get("/ping", (_req, res) => {
+  res.json({ pong: true, time: new Date().toISOString() });
 });
 
 module.exports = router;
