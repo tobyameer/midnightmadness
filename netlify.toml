@@ -1,7 +1,7 @@
 [build]
   base = "Client"
   publish = "dist"
-  command = "npm ci && npm run build && npm --prefix ../server ci"
+  command = "npm ci --include=dev && npm run build && npm --prefix ../server ci"
 
 [functions]
   directory = "../server/netlify/functions"
