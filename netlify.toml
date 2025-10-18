@@ -1,19 +1,31 @@
 [build]
   base = "Client"
   publish = "dist"
+  # Install dev deps so 'vite' exists, then build client, then install server deps
   command = "npm ci --include=dev && npm run build && npm --prefix ../server ci"
 
 [functions]
-  # NOTE: path is relative to the base; "../server" is correct here
   directory = "../server/netlify/functions"
   node_bundler = "esbuild"
 
+# IMPORTANT: do NOT use 'included_files' here; esbuild should bundle only CommonJS server code.
+
+[build.environment]
+  NODE_VERSION = "20"
+  NPM_FLAGS = "--include=dev"
+
+# API proxy to function
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
   status = 200
 
+# SPA fallback
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+
+[dev]
+  targetPort = 5173
+  framework = "vite"

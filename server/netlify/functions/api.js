@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const mongoose = require("mongoose");
+const { connectToDatabase, redact } = require("../../utils/db");
 
 // Routers (CommonJS)
 const publicRoutes = require("../../routes/public");
@@ -17,57 +18,9 @@ app.use(cors({ origin: "*" }));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// Cache
-let cachedDb = null;
-
-function redactMongoUri(uri) {
-  if (!uri) return "";
-  // strip credentials safely
-  return uri.replace(/\/\/([^@]+)@/, "//<redacted>@");
-}
-
-async function connectToDatabase() {
-  // Use cached live connection when possible
-  if (cachedDb && mongoose.connection.readyState === 1) {
-    return cachedDb;
-  }
-
-  const uri = process.env.MONGO_URI;
-  if (!uri) {
-    console.warn("⚠ MONGO_URI is not set. Skipping DB connection.");
-    return null;
-  }
-
-  if (!uri.startsWith("mongodb+srv://")) {
-    console.warn(
-      "⚠ MONGO_URI does not use SRV scheme. Use your Atlas SRV URL (mongodb+srv://...). Current:",
-      redactMongoUri(uri)
-    );
-  }
-
-  try {
-    await mongoose.connect(uri, {
-      // Keep options minimal for Atlas SRV; it configures TLS automatically.
-      serverSelectionTimeoutMS: 12000,
-    });
-    cachedDb = mongoose.connection;
-    console.log("✅ MongoDB connected:", {
-      hosts: mongoose.connection.host,
-      name: mongoose.connection.name,
-    });
-    return cachedDb;
-  } catch (err) {
-    console.error("❌ MongoDB connection failed:", {
-      message: err.message,
-      name: err.name,
-      code: err.code,
-    });
-    throw err; // propagate so Netlify logs show the real cause
-  }
-}
-
-// Health
-app.get("/health", (_req, res) => res.json({ status: "ok", message: "API is running" }));
+const sendHealth = (_req, res) => res.json({ status: "ok", message: "API is running" });
+app.get("/health", sendHealth);
+app.get("/api/health", sendHealth);
 
 app.get("/api/diag/mongo", async (_req, res) => {
   const uri = process.env.MONGO_URI || "";
@@ -80,27 +33,41 @@ app.get("/api/diag/mongo", async (_req, res) => {
     3: "disconnecting",
     99: "uninitialized",
   };
+  let lastError = null;
+
+  try {
+    await connectToDatabase();
+  } catch (err) {
+    lastError = err;
+  }
+
   const state = stateMap[mongoose.connection.readyState] || "unknown";
 
-  res.json({
-    ok: true,
+  res.status(lastError ? 500 : 200).json({
+    ok: !lastError,
     mongo: {
       scheme,
       isSrv,
       connected: mongoose.connection.readyState === 1,
       state,
-      // redact creds, show only host/db meta if available
       host: mongoose.connection.host || null,
       db: mongoose.connection.name || null,
-      uriRedacted: redactMongoUri(uri),
+      uriRedacted: redact(uri),
     },
+    error: lastError
+      ? {
+          message: lastError.message,
+          name: lastError.name,
+          code: lastError.code,
+        }
+      : undefined,
   });
 });
 
 // Mount routers under /api
-app.use("/", publicRoutes);
-app.use("/admin", adminVerifyRoutes);
-app.use("/tickets", ticketRoutes);
+app.use("/api", publicRoutes);
+app.use("/api/admin", adminVerifyRoutes);
+app.use("/api/tickets", ticketRoutes);
 
 const handler = serverless(app);
 
@@ -111,13 +78,14 @@ exports.handler = async (event, context) => {
   const alreadyConnected = mongoose.connection.readyState === 1;
   console.log("🔁 Netlify invocation", {
     mongoScheme: scheme || null,
+    isSrv: uri.startsWith("mongodb+srv://"),
     connected: alreadyConnected,
-    uri: redactMongoUri(uri) || null,
+    uri: redact(uri) || null,
   });
   await connectToDatabase();
   // Strip "/.netlify/functions/api" if present so routers see "/..."
-  if (event.path && event.path.startsWith("/.netlify/functions/api")) {
-    event.path = event.path.replace("/.netlify/functions/api", "");
+  if (event.path) {
+    event.path = event.path.replace(/^\/\.netlify\/functions\/api/, "/api");
   }
   return handler(event, context);
 };
