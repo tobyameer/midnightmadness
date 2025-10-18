@@ -3,12 +3,11 @@
   command = "npm ci --include=dev && npm run build"
 
 [functions]
-  directory    = "../functions"
+  directory = "../functions"
   node_bundler = "esbuild"
 
-# Send ALL /api/* requests to the single "api" function (with splat)
 [[redirects]]
   from = "/api/*"
-  to   = "/.netlify/functions/api/:splat"
+  to = "/.netlify/functions/api/:splat"
   status = 200
-  force  = true
+  force = true
