@@ -5,10 +5,10 @@ const helmet = require("helmet");
 const mongoose = require("mongoose");
 const { connectToDatabase, redact } = require("../../utils/db");
 
-// Routers (CommonJS)
-const publicRoutes = require("../../routes/public");
-const adminVerifyRoutes = require("../../routes/adminVerify");
+// Import the CORRECT route files
+const adminRoutes = require("../../routes/adminVerify"); // This has the login route
 const ticketRoutes = require("../../routes/tickets");
+const paymentRoutes = require("../../routes/payments"); // Payment routes if you have them
 
 const app = express();
 app.set("trust proxy", 1);
@@ -65,10 +65,10 @@ app.get("/api/diag/mongo", async (_req, res) => {
   });
 });
 
-// Mount routers under /api
-app.use("/api", publicRoutes);
-app.use("/api/admin", adminVerifyRoutes);
+// Mount routes under /api with CORRECT route files
+app.use("/api/admin", adminRoutes); // This should have the login route
 app.use("/api/tickets", ticketRoutes);
+app.use("/api/payments", paymentRoutes); // Added payments routes
 
 const handler = serverless(app);
 
@@ -80,7 +80,7 @@ exports.handler = async (event, context) => {
   console.log("🔁 Netlify invocation", {
     mongoScheme: scheme || null,
     connected: alreadyConnected,
-    uri: redactMongoUri(uri) || null,
+    uri: redact(uri) || null,
   });
   await connectToDatabase();
   // Strip "/.netlify/functions/api" if present so routers see "/..."
