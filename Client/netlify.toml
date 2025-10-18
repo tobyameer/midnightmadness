@@ -1,13 +1,31 @@
 [build]
+  base = "Client"
   publish = "dist"
-  command = "npm ci --include=dev && npm run build"
+  command = "npm ci --include=dev && npm run build && npm --prefix ../server ci"
 
 [functions]
-  directory = "../functions"
+  directory = "../server/netlify/functions"
   node_bundler = "esbuild"
 
+[build.environment]
+  NODE_VERSION = "20"
+
+# More specific redirect first
+[[redirects]]
+  from = "/api/tickets/manual-payment"
+  to = "/.netlify/functions/api/tickets/manual"
+  status = 200
+  force = true
+
+# General API redirect
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
   status = 200
   force = true
+
+# SPA fallback
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
