@@ -210,6 +210,8 @@ export const RegistrationForm = () => {
         // Try to parse the error message for user-friendly display
         try {
           const errorText = error.message;
+          console.log("Error message:", errorText);
+
           if (errorText.includes("Email already registered")) {
             errorMessage =
               "This email address is already registered. Please use a different email address.";
@@ -228,6 +230,7 @@ export const RegistrationForm = () => {
         }
       }
 
+      console.log("Showing toast with message:", errorMessage);
       toast({
         title: "Registration failed",
         description: errorMessage,
@@ -294,6 +297,8 @@ export const RegistrationForm = () => {
         // Try to parse the error message for user-friendly display
         try {
           const errorText = error.message;
+          console.log("Error message:", errorText);
+
           if (errorText.includes("Email already registered")) {
             errorMessage =
               "This email address is already registered. Please use a different email address.";
@@ -312,6 +317,7 @@ export const RegistrationForm = () => {
         }
       }
 
+      console.log("Showing toast with message:", errorMessage);
       toast({
         title: "Registration failed",
         description: errorMessage,
