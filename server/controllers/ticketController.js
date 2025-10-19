@@ -1,4 +1,8 @@
 const Ticket = require("../models/Ticket");
+const { sendEmail } = require("../utils/sendEmail");
+const { buildPaymentConfirmationEmail } = require("../utils/emailTemplates");
+const { buildTicketQrPayload } = require("../utils/qr");
+const QRCode = require("qrcode");
 
 /**
  * Get all tickets with optional filtering
@@ -328,7 +332,7 @@ async function listPendingTickets(req, res) {
  */
 async function listPaidTickets(req, res) {
   try {
-    const tickets = await Ticket.find({ status: "active" })
+    const tickets = await Ticket.find({ status: "paid" })
       .sort({ createdAt: -1 })
       .lean();
 
@@ -388,8 +392,13 @@ async function verifyTicket(req, res) {
 async function markAsPaid(req, res) {
   try {
     const { ticketId } = req.params;
+    console.log("Mark as paid - ticketId:", ticketId);
 
     const ticket = await Ticket.findById(ticketId);
+    console.log(
+      "Mark as paid - found ticket:",
+      ticket ? ticket.ticketId : "NOT FOUND"
+    );
 
     if (!ticket) {
       return res.status(404).json({
@@ -398,19 +407,70 @@ async function markAsPaid(req, res) {
       });
     }
 
-    ticket.status = "active";
+    ticket.status = "paid";
     await ticket.save();
+    console.log("Mark as paid - ticket saved successfully");
+
+    // Send QR code emails to all attendees
+    try {
+      const qrPayload = buildTicketQrPayload(ticket);
+      const qrCodeDataURL = await QRCode.toDataURL(JSON.stringify(qrPayload), {
+        width: 200,
+        margin: 2,
+        color: {
+          dark: "#000000",
+          light: "#FFFFFF",
+        },
+      });
+
+      // Send email to each attendee
+      for (const attendee of ticket.attendees) {
+        const emailHtml = buildPaymentConfirmationEmail({
+          name: attendee.fullName,
+          ticketId: ticket.ticketId,
+          packageType: ticket.packageType,
+          attendees: ticket.attendees,
+          paymentUrl: `${process.env.CLIENT_URL}/ticket/${ticket.ticketId}`,
+          qrBase64: qrCodeDataURL.split(",")[1], // Remove data:image/png;base64, prefix
+        });
+
+        await sendEmail({
+          to: attendee.email,
+          subject: `🎫 Your Midnight Madness Ticket is Ready! (${ticket.ticketId})`,
+          html: emailHtml,
+          template: "payment_confirmation",
+          ticketId: ticket.ticketId,
+          metadata: {
+            attendeeName: attendee.fullName,
+            packageType: ticket.packageType,
+          },
+        });
+
+        console.log(
+          `QR code email sent to ${attendee.email} for ticket ${ticket.ticketId}`
+        );
+      }
+
+      console.log(
+        `All QR code emails sent successfully for ticket ${ticket.ticketId}`
+      );
+    } catch (emailError) {
+      console.error("Failed to send QR code emails:", emailError);
+      // Don't fail the entire operation if email fails
+    }
 
     return res.json({
       success: true,
-      message: "Ticket marked as paid",
+      message: "Ticket marked as paid and QR codes sent",
       ticket,
     });
   } catch (error) {
     console.error("Mark as paid error:", error);
+    console.error("Error stack:", error.stack);
     return res.status(500).json({
       success: false,
       message: "Failed to mark ticket as paid",
+      error: error.message,
     });
   }
 }
