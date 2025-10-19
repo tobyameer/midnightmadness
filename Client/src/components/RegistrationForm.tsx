@@ -198,8 +198,9 @@ export const RegistrationForm = () => {
 
       await submitManualPaymentTicket(payload);
       toast({
-        title: "Registration successful",
+        title: "Registration Successful!",
         description: "Complete your payment to receive your ticket.",
+        duration: 5000, // Show for 5 seconds
       });
       prevScrollY.current = window.scrollY; // capture BEFORE swap
       setShowPaymentInfo(true);
@@ -232,9 +233,10 @@ export const RegistrationForm = () => {
 
       console.log("Showing toast with message:", errorMessage);
       toast({
-        title: "Registration failed",
+        title: "Registration Failed!",
         description: errorMessage,
         variant: "destructive",
+        duration: 8000, // Show for 8 seconds
       });
     } finally {
       setIsSubmitting(false);
@@ -248,10 +250,11 @@ export const RegistrationForm = () => {
     const femaleGender = getEgyptianIdGender(data.nationalId2.trim());
     if (maleGender !== "male" || femaleGender !== "female") {
       toast({
-        title: "Invalid national IDs",
+        title: "Invalid National IDs!",
         description:
           "Couples package requires exactly one male and one female.",
         variant: "destructive",
+        duration: 6000, // Show for 6 seconds
       });
       setIsSubmitting(false);
       return;
@@ -285,8 +288,9 @@ export const RegistrationForm = () => {
 
       await submitManualPaymentTicket(payload);
       toast({
-        title: "Registration successful",
+        title: "Registration Successful!",
         description: "Complete your payment to receive your tickets.",
+        duration: 5000, // Show for 5 seconds
       });
       prevScrollY.current = window.scrollY; // capture BEFORE swap
       setShowPaymentInfo(true);
@@ -319,9 +323,10 @@ export const RegistrationForm = () => {
 
       console.log("Showing toast with message:", errorMessage);
       toast({
-        title: "Registration failed",
+        title: "Registration Failed!",
         description: errorMessage,
         variant: "destructive",
+        duration: 8000, // Show for 8 seconds
       });
     } finally {
       setIsSubmitting(false);
