@@ -17,10 +17,15 @@ export const API_BASE = (ENV_BASE || DEFAULT_BASE).replace(/\/$/, "");
 
 // Manual payment submission
 export async function postManualPayment(payload: {
-  fullName: string;
-  phone: string;
-  nationalId: string;
-  email: string;
+  packageType: string;
+  contactEmail: string;
+  attendees: Array<{
+    fullName: string;
+    email: string;
+    phone: string;
+    nationalId: string;
+    gender: string;
+  }>;
 }) {
   const res = await fetch(`${API_BASE}/tickets/manual`, {
     method: "POST",
