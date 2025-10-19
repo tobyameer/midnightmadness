@@ -1,22 +1,26 @@
-# Dependencies / caches
+# Dependencies
 node_modules/
-**/node_modules/
-**/.cache/
+Client/node_modules/
+server/node_modules/
 
-# Client env
-midnight-madness-landing/Client/.env
-
-# env files
+# Environment variables
 .env
-*.env
+.env.local
+.env.production
+.env.development
 server/.env
 server/.env.local
-
-# env files
-.env
-*.env
 Client/.env
-server/.env
+Client/.env.local
 
-# Local Netlify folder
-.netlify
+# Build outputs
+Client/dist/
+.netlify/
+
+# OS files
+.DS_Store
+*.log
+
+# IDE
+.vscode/
+.idea/
