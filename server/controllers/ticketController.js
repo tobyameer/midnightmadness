@@ -271,8 +271,13 @@ async function manualRegistration(req, res) {
       });
     }
 
-    // Create ticket
+    // ✅ FIXED: Generate ticketId before creating the ticket
+    const { generateTicketId } = require("../utils/id");
+    const ticketId = await generateTicketId();
+
+    // Create ticket with the generated ticketId
     const ticket = new Ticket({
+      ticketId,
       packageType,
       contactEmail,
       attendees,
@@ -283,7 +288,7 @@ async function manualRegistration(req, res) {
 
     return res.json({
       success: true,
-      ticketId: ticket._id,
+      ticketId: ticket.ticketId,
       status: ticket.status,
     });
   } catch (error) {
