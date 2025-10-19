@@ -275,6 +275,23 @@ async function manualRegistration(req, res) {
       });
     }
 
+    // Check for duplicate emails
+    const attendeeEmails = attendees.map(a => a.email.toLowerCase());
+    const existingTicket = await Ticket.findOne({
+      $or: [
+        { contactEmail: contactEmail.toLowerCase() },
+        { "attendees.email": { $in: attendeeEmails } }
+      ]
+    });
+
+    if (existingTicket) {
+      return res.status(409).json({
+        success: false,
+        message: "Email already registered. Please use a different email address.",
+        duplicateEmail: contactEmail
+      });
+    }
+
     // ✅ FIXED: Generate ticketId before creating the ticket
     const { generateTicketId } = require("../utils/id");
     const ticketId = await generateTicketId();

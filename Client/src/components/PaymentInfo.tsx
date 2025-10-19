@@ -21,19 +21,49 @@ export const PaymentInfo = () => {
   });
 
   // Try to infer the selected package (fallback to single)
-  const packageType: PackageType = useMemo(() => {
-    try {
-      const urlPkg = new URLSearchParams(window.location.search).get("pkg");
-      const stored =
-        localStorage.getItem("mm_packageType") ||
-        sessionStorage.getItem("mm_packageType") ||
-        "";
-      const value = (urlPkg || stored || "single").toLowerCase();
-      return value === "couple" ? "couple" : "single";
-    } catch {
-      return "single";
-    }
-  }, []);
+  const [packageType, setPackageType] = useState<PackageType>("single");
+
+  useEffect(() => {
+    const getPackageType = () => {
+      try {
+        const urlPkg = new URLSearchParams(window.location.search).get("pkg");
+        const stored =
+          localStorage.getItem("mm_packageType") ||
+          sessionStorage.getItem("mm_packageType") ||
+          "";
+        const value = (urlPkg || stored || "single").toLowerCase();
+        return value === "couple" ? "couple" : "single";
+      } catch {
+        return "single";
+      }
+    };
+
+    const initialType = getPackageType();
+    console.log("PaymentInfo: Initial package type:", initialType);
+    setPackageType(initialType);
+
+    // Listen for storage changes (in case localStorage is updated after component mounts)
+    const handleStorageChange = () => {
+      const newType = getPackageType();
+      console.log("PaymentInfo: Storage changed, new package type:", newType);
+      setPackageType(newType);
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+
+    // Also check periodically for changes (fallback for same-tab updates)
+    const interval = setInterval(() => {
+      const currentType = getPackageType();
+      if (currentType !== packageType) {
+        setPackageType(currentType);
+      }
+    }, 100);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      clearInterval(interval);
+    };
+  }, [packageType]);
 
   const amountDue = PRICES[packageType];
 

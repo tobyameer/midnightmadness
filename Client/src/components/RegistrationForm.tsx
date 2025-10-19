@@ -192,6 +192,10 @@ export const RegistrationForm = () => {
     };
 
     try {
+      // Store package type for payment info BEFORE API call
+      localStorage.setItem("mm_packageType", "single");
+      console.log("Stored package type: single");
+
       await submitManualPaymentTicket(payload);
       toast({
         title: "Registration successful",
@@ -251,6 +255,10 @@ export const RegistrationForm = () => {
     };
 
     try {
+      // Store package type for payment info BEFORE API call
+      localStorage.setItem("mm_packageType", "couple");
+      console.log("Stored package type: couple");
+
       await submitManualPaymentTicket(payload);
       toast({
         title: "Registration successful",
