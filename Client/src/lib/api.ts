@@ -34,8 +34,15 @@ export async function postManualPayment(payload: {
   });
   
   if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Manual payment failed (${res.status}): ${text || "unknown error"}`);
+    let errorMessage = "unknown error";
+    try {
+      const errorData = await res.json();
+      errorMessage = errorData.message || errorMessage;
+    } catch {
+      const text = await res.text().catch(() => "");
+      errorMessage = text || errorMessage;
+    }
+    throw new Error(`Manual payment failed (${res.status}): ${errorMessage}`);
   }
   
   return res.json();

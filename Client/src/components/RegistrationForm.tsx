@@ -204,12 +204,33 @@ export const RegistrationForm = () => {
       prevScrollY.current = window.scrollY; // capture BEFORE swap
       setShowPaymentInfo(true);
     } catch (error) {
+      let errorMessage = "Unable to submit registration.";
+
+      if (error instanceof Error) {
+        // Try to parse the error message for user-friendly display
+        try {
+          const errorText = error.message;
+          if (errorText.includes("Email already registered")) {
+            errorMessage =
+              "This email address is already registered. Please use a different email address.";
+          } else if (errorText.includes("409")) {
+            errorMessage =
+              "This email address is already registered. Please use a different email address.";
+          } else if (errorText.includes("400")) {
+            errorMessage = "Please check your information and try again.";
+          } else if (errorText.includes("500")) {
+            errorMessage = "Server error. Please try again later.";
+          } else {
+            errorMessage = errorText;
+          }
+        } catch {
+          errorMessage = error.message;
+        }
+      }
+
       toast({
         title: "Registration failed",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Unable to submit registration.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -267,12 +288,33 @@ export const RegistrationForm = () => {
       prevScrollY.current = window.scrollY; // capture BEFORE swap
       setShowPaymentInfo(true);
     } catch (error) {
+      let errorMessage = "Unable to submit registration.";
+
+      if (error instanceof Error) {
+        // Try to parse the error message for user-friendly display
+        try {
+          const errorText = error.message;
+          if (errorText.includes("Email already registered")) {
+            errorMessage =
+              "This email address is already registered. Please use a different email address.";
+          } else if (errorText.includes("409")) {
+            errorMessage =
+              "This email address is already registered. Please use a different email address.";
+          } else if (errorText.includes("400")) {
+            errorMessage = "Please check your information and try again.";
+          } else if (errorText.includes("500")) {
+            errorMessage = "Server error. Please try again later.";
+          } else {
+            errorMessage = errorText;
+          }
+        } catch {
+          errorMessage = error.message;
+        }
+      }
+
       toast({
         title: "Registration failed",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Unable to submit registration.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
