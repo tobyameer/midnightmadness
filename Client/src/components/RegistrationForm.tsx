@@ -98,6 +98,7 @@ export const RegistrationForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<PackageType>(null);
   const [showPaymentInfo, setShowPaymentInfo] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const { toast } = useToast();
 
   // --- Scroll preservation ---
@@ -197,6 +198,7 @@ export const RegistrationForm = () => {
       console.log("Stored package type: single");
 
       await submitManualPaymentTicket(payload);
+      setFormError(null);
       toast({
         title: "Registration Successful!",
         description: "Complete your payment to receive your ticket.",
@@ -232,6 +234,7 @@ export const RegistrationForm = () => {
       }
 
       console.log("Showing toast with message:", errorMessage);
+      setFormError(errorMessage);
       toast({
         title: "Registration Failed!",
         description: errorMessage,
@@ -287,6 +290,7 @@ export const RegistrationForm = () => {
       console.log("Stored package type: couple");
 
       await submitManualPaymentTicket(payload);
+      setFormError(null);
       toast({
         title: "Registration Successful!",
         description: "Complete your payment to receive your tickets.",
@@ -322,6 +326,7 @@ export const RegistrationForm = () => {
       }
 
       console.log("Showing toast with message:", errorMessage);
+      setFormError(errorMessage);
       toast({
         title: "Registration Failed!",
         description: errorMessage,
@@ -370,6 +375,11 @@ export const RegistrationForm = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {formError && (
+              <div className="mb-6 rounded-md border border-red-500/40 bg-red-500/10 px-4 py-3 text-red-300">
+                <p className="text-sm font-medium">{formError}</p>
+              </div>
+            )}
             {selectedPackage && (
               <button
                 onClick={() => setSelectedPackage(null)}

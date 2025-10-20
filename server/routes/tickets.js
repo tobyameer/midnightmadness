@@ -5,6 +5,7 @@ const {
   listPaidTickets,
   verifyTicket,
   markAsPaid,
+  resendTicket,
 } = require("../controllers/ticketController");
 
 const router = express.Router();
@@ -17,7 +18,8 @@ router.post("/verify", verifyTicket);
 router.get("/pending", listPendingTickets);
 router.get("/paid", listPaidTickets);
 
-// Admin action
+// Admin actions
 router.post("/:ticketId/mark-paid", markAsPaid);
+router.post("/:ticketId/resend", resendTicket);
 
 module.exports = router;

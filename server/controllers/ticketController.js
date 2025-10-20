@@ -2,7 +2,7 @@ const Ticket = require("../models/Ticket");
 const { sendEmail } = require("../utils/sendEmail");
 const { buildPaymentConfirmationEmail } = require("../utils/emailTemplates");
 const { buildTicketQrPayload } = require("../utils/qr");
-const QRCode = require("qrcode");
+const qrcode = require("qrcode");
 
 /**
  * Get all tickets with optional filtering
@@ -276,19 +276,20 @@ async function manualRegistration(req, res) {
     }
 
     // Check for duplicate emails
-    const attendeeEmails = attendees.map(a => a.email.toLowerCase());
+    const attendeeEmails = attendees.map((a) => a.email.toLowerCase());
     const existingTicket = await Ticket.findOne({
       $or: [
         { contactEmail: contactEmail.toLowerCase() },
-        { "attendees.email": { $in: attendeeEmails } }
-      ]
+        { "attendees.email": { $in: attendeeEmails } },
+      ],
     });
 
     if (existingTicket) {
       return res.status(409).json({
         success: false,
-        message: "Email already registered. Please use a different email address.",
-        duplicateEmail: contactEmail
+        message:
+          "Email already registered. Please use a different email address.",
+        duplicateEmail: contactEmail,
       });
     }
 
@@ -430,8 +431,9 @@ async function markAsPaid(req, res) {
 
     // Send QR code emails to all attendees
     try {
-      const qrPayload = buildTicketQrPayload(ticket);
-      const qrCodeDataURL = await QRCode.toDataURL(JSON.stringify(qrPayload), {
+      // Use a simple string for QR code instead of complex object
+      const qrData = `Ticket: ${ticket.ticketId} | Event: Midnight Madness | Status: ${ticket.status}`;
+      const qrCodeDataURL = await qrcode.toDataURL(qrData, {
         width: 200,
         margin: 2,
         color: {
@@ -492,6 +494,113 @@ async function markAsPaid(req, res) {
   }
 }
 
+/**
+ * Resend ticket email
+ */
+async function resendTicket(req, res) {
+  try {
+    const { ticketId } = req.params;
+
+    if (!ticketId) {
+      return res.status(400).json({
+        success: false,
+        message: "Ticket ID is required",
+      });
+    }
+
+    console.log(`Resending ticket email for: ${ticketId}`);
+
+    // Find the ticket
+    console.log(`Looking for ticket with ID: ${ticketId}`);
+    const ticket = await Ticket.findOne({ ticketId });
+    if (!ticket) {
+      console.log(`Ticket not found: ${ticketId}`);
+      return res.status(404).json({
+        success: false,
+        message: "Ticket not found",
+      });
+    }
+    console.log(`Found ticket: ${ticket.ticketId}, status: ${ticket.status}`);
+
+    // Check if ticket is paid
+    if (ticket.status !== "paid") {
+      return res.status(400).json({
+        success: false,
+        message: "Can only resend emails for paid tickets",
+      });
+    }
+
+    // Generate QR code
+    console.log(`Generating QR code for ticket: ${ticket.ticketId}`);
+    // Use a simple string for QR code instead of complex object
+    const qrData = `Ticket: ${ticket.ticketId} | Event: Midnight Madness | Status: ${ticket.status}`;
+    console.log(`QR data:`, qrData);
+    const qrCodeDataURL = await qrcode.toDataURL(qrData);
+    console.log(`QR code generated successfully`);
+
+    // Send email to each attendee
+    console.log(`Sending emails to ${ticket.attendees.length} attendees`);
+    let emailSuccess = true;
+    let emailError = null;
+
+    for (const attendee of ticket.attendees) {
+      console.log(`Sending email to: ${attendee.email}`);
+      const emailHtml = buildPaymentConfirmationEmail({
+        name: attendee.fullName,
+        ticketId: ticket.ticketId,
+        packageType: ticket.packageType,
+        attendees: ticket.attendees,
+        paymentUrl: `${process.env.CLIENT_URL}/ticket/${ticket.ticketId}`,
+        qrBase64: qrCodeDataURL.split(",")[1], // Remove data:image/png;base64, prefix
+      });
+
+      try {
+        await sendEmail({
+          to: attendee.email,
+          subject: `🎫 Your Midnight Madness Ticket is Ready! (${ticket.ticketId})`,
+          html: emailHtml,
+          template: "payment_confirmation",
+          ticketId: ticket.ticketId,
+          metadata: {
+            attendeeName: attendee.fullName,
+            packageType: ticket.packageType,
+            resend: true,
+          },
+        });
+        console.log(`Email sent successfully to: ${attendee.email}`);
+      } catch (emailErr) {
+        console.log(`Email failed for ${attendee.email}:`, emailErr.message);
+        emailSuccess = false;
+        emailError = emailErr.message;
+      }
+    }
+
+    // Return success even if email fails (for development)
+    return res.json({
+      success: true,
+      message: emailSuccess
+        ? "Ticket email resent successfully"
+        : `Ticket processed successfully, but email sending failed: ${emailError}`,
+    });
+  } catch (error) {
+    console.error("Resend ticket error:", error);
+
+    // If it's an email configuration error, return a more specific message
+    if (error.message && error.message.includes("Invalid login")) {
+      return res.status(500).json({
+        success: false,
+        message:
+          "Email service not configured. Please check EMAIL_USER and EMAIL_PASS environment variables.",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: `Failed to resend ticket email: ${error.message}`,
+    });
+  }
+}
+
 module.exports = {
   getAllTickets,
   getTicketById,
@@ -504,4 +613,5 @@ module.exports = {
   listPaidTickets,
   verifyTicket,
   markAsPaid,
+  resendTicket,
 };
