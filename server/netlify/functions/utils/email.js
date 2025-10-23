@@ -39,7 +39,7 @@ function layout({ title, body }) {
 function buildRegistrationEmail({ name, ticketId, paymentUrl }) {
   const body = `
     <p style="font-size:16px;margin:0 0 16px 0;color:#ffffff;">Hi ${
-      name.split(" ")[0] || "there"
+      (name || "there").split(" ")[0]
     },</p>
     <p style="font-size:16px;margin:0 0 16px 0;color:#ffffff;">
       Thanks for registering for <strong>Clear Vision</strong>! Your ticket is reserved and awaiting payment.
@@ -52,7 +52,9 @@ function buildRegistrationEmail({ name, ticketId, paymentUrl }) {
       </p>
       ${
         paymentUrl
-          ? `<a href="${paymentUrl}" style="display:inline-block;padding:12px 22px;border-radius:999px;background:#d74632;color:#0D0B0C;font-weight:600;text-decoration:none;">Complete Payment</a>`
+          ? `<a href="${paymentUrl}" style="display:inline-block;padding:12px 22px;border-radius:999px;background:#d74632;color:#0D0B0C;font-weight:600;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+               Complete Payment
+             </a>`
           : ""
       }
     </div>
@@ -60,17 +62,21 @@ function buildRegistrationEmail({ name, ticketId, paymentUrl }) {
       Keep this email handy. We can't wait to see you under the midnight lights!
     </p>
   `;
-
   return layout({ title: "Your registration is confirmed", body });
 }
 
+/**
+ * Build the payment confirmation email.
+ * Supports either inline CID (`qrCid`) or base64 data URL fallback (`qrBase64`).
+ */
 function buildPaymentConfirmationEmail({
   name,
   ticketId,
   paymentUrl,
   packageType,
   attendees,
-  qrBase64,
+  qrCid, // preferred: attach image with this CID
+  qrBase64, // fallback: base64 string (no "data:" prefix needed)
 }) {
   const attendeeSection = Array.isArray(attendees)
     ? attendees
@@ -100,26 +106,46 @@ function buildPaymentConfirmationEmail({
         .join("")
     : "";
 
+  // Decide image src
+  const imgSrc = qrCid
+    ? `cid:${qrCid}`
+    : qrBase64
+    ? `data:image/png;base64,${qrBase64}`
+    : "";
+
+  const imgBlock = imgSrc
+    ? `
+      <table role="presentation" width="100%" style="border-collapse:collapse;">
+        <tr>
+          <td align="center" style="padding:16px 0;">
+            <img src="${imgSrc}" alt="Clear Vision ticket QR code" width="220" height="220" style="display:block;margin:0 auto;border-radius:8px;border:1px solid rgba(255,255,255,0.2);" />
+          </td>
+        </tr>
+      </table>
+    `
+    : `
+      <div style="margin-top:12px;background:#0f0f10;border:1px dashed rgba(255,255,255,0.18);border-radius:8px;padding:12px 14px;text-align:left;">
+        <p style="margin:0;font-size:13px;line-height:18px;color:#e5e5e5;">
+          We couldn't inline your QR image. Please reply to this email and we'll resend it.
+        </p>
+      </div>
+    `;
+
   const body = `
     <p style="font-size:16px;margin:0 0 16px 0;color:#ffffff;">Hi ${
-      name.split(" ")[0] || "there"
+      (name || "there").split(" ")[0]
     },</p>
     <p style="font-size:16px;margin:0 0 16px 0;color:#ffffff;">
       We received your payment — you’re officially on the Clear Vision guest list.
     </p>
     <div style="background:#111113;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:24px;margin:24px 0;text-align:center;">
-      <p style="margin:0 0 12px 0;font-size:15px;color:#ffffff;">Present this QR code at the entrance:</p>
-      <table role="presentation" width="100%" style="border-collapse:collapse;">
-        <tr>
-          <td align="center" style="padding:16px 0;">
-            ${
-              qrBase64
-                ? `<img src="data:image/png;base64,${qrBase64}" alt="Clear Vision ticket QR code" width="220" height="220" style="display:block;margin:0 auto;border-radius:8px;border:1px solid rgba(255,255,255,0.2);" />`
-                : `<div style="width:220px;height:220px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;color:#666;font-size:14px;margin:0 auto;border-radius:8px;">QR Code not available</div>`
-            }
-          </td>
-        </tr>
-      </table>
+      <p style="margin:0 0 12px 0;font-size:15px;color:#ffffff;">Your QR ticket is included in this email. Some email apps display images near the bottom (attachments area). Please have it ready for scanning on arrival.</p>
+      ${imgBlock}
+      <div style="margin-top:12px;background:#0f0f10;border:1px dashed rgba(255,255,255,0.18);border-radius:8px;padding:12px 14px;text-align:left;">
+        <p style="margin:0;font-size:13px;line-height:18px;color:#e5e5e5;">
+          <strong style="color:#ffffff;">Can’t see the QR above?</strong> Some email apps move images to the end of the message. Scroll to the bottom of this email (attachments area) to find your QR and present it at the door.
+        </p>
+      </div>
       <p style="margin:16px 0 0 0;font-size:16px;color:#ffffff;">
         Ticket ID: <span style="font-weight:600;letter-spacing:1px;color:#d74632;">${ticketId}</span>
       </p>
@@ -138,7 +164,7 @@ function buildPaymentConfirmationEmail({
     <p style="font-size:15px;margin:0 0 16px 0;color:#ffffff;">
       ${
         paymentUrl
-          ? `Need to review payment instructions? <a href="${paymentUrl}" style="color:#d74632;text-decoration:none;">Visit your ticket page.</a>`
+          ? `Need to review payment instructions? <a href="${paymentUrl}" style="color:#d74632;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Visit your ticket page.</a>`
           : "Keep this QR code safe and we’ll see you at the entrance."
       }
     </p>
@@ -153,7 +179,7 @@ function buildPaymentConfirmationEmail({
 function buildRejectionEmail({ name }) {
   const body = `
     <p style="font-size:16px;margin:0 0 16px 0;color:#ffffff;">Hi ${
-      name.split(" ")[0] || "there"
+      (name || "there").split(" ")[0]
     },</p>
     <p style="font-size:16px;margin:0 0 16px 0;color:#ffffff;">
       Thank you for your interest in Clear Vision. After reviewing your registration we’re unable to confirm a ticket at this time.
@@ -162,7 +188,7 @@ function buildRejectionEmail({ name }) {
       We hope to see you at a future event. If you believe this was made in error, just reply to this email and our team will investigate.
     </p>
   `;
-
+  b;
   return layout({ title: "Ticket update", body });
 }
 
