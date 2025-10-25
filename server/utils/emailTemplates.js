@@ -55,7 +55,7 @@ function buildPaymentConfirmationEmail({
                 <div style="background:#ffffff;padding:20px;border-radius:12px;display:inline-block;box-shadow:0 4px 12px rgba(0,0,0,0.3);">
                   ${
                     inlineImg
-                      ? `<img alt="QR Code for ${ticketId}" src="${inlineImg}" style="width:200px;height:200px;display:block;" />`
+                      ? `<img alt="Your QR Code" src="${inlineImg}" width="256" height="256" style="display:block;border-radius:12px;background:#111;" />`
                       : `<div style="width:200px;height:200px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;color:#666;font-size:14px;">QR Code not available</div>`
                   }
                 </div>

@@ -1,4 +1,4 @@
-const { getPriceSummary } = require('./pricing');
+const { getPriceSummary, getCouplePriceSummary } = require("./pricing");
 
 function toNumber(value, fallback) {
   const parsed = Number(value);
@@ -13,7 +13,10 @@ const DEFAULT_RESEND_LIMIT = 5;
 const DEFAULT_WEBHOOK_RATE = 60;
 
 function getSessionTimeoutMinutes() {
-  const configured = toNumber(process.env.SESSION_TIMEOUT_MIN, DEFAULT_SESSION_TIMEOUT_MIN);
+  const configured = toNumber(
+    process.env.SESSION_TIMEOUT_MIN,
+    DEFAULT_SESSION_TIMEOUT_MIN
+  );
   return Math.max(5, configured);
 }
 
@@ -30,14 +33,26 @@ function getResendLimit() {
 }
 
 function buildClientRuntimeConfig() {
-  const pricing = getPriceSummary();
+  const singlePricing = getPriceSummary();
+  const couplePricing = getCouplePriceSummary();
   return {
-    price: pricing.egp,
-    priceEgp: pricing.egp,
-    currency: pricing.currency,
+    single: {
+      price: singlePricing.egp,
+      priceEgp: singlePricing.egp,
+      currency: singlePricing.currency,
+    },
+    couple: {
+      price: couplePricing.egp,
+      priceEgp: couplePricing.egp,
+      currency: couplePricing.currency,
+    },
+    // Backwards compatibility
+    price: singlePricing.egp,
+    priceEgp: singlePricing.egp,
+    currency: singlePricing.currency,
     sessionTimeoutMinutes: getSessionTimeoutMinutes(),
-    environment: (process.env.NODE_ENV || 'development').toLowerCase(),
-    version: pricing.version || '1.0',
+    environment: (process.env.NODE_ENV || "development").toLowerCase(),
+    version: singlePricing.version || "1.0",
     updatedAt: new Date().toISOString(),
   };
 }

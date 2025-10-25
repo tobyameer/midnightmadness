@@ -108,9 +108,6 @@ export const PaymentInfo = () => {
           <p className="text-muted-foreground text-[12px] sm:text-sm lg:text-lg">
             Your ticket is reserved — complete payment to receive your QR code.
           </p>
-          <p className="text-[11px] sm:text-xs text-muted-foreground">
-            Your data is securely stored in our system.
-          </p>
 
           {/* Amount Due badge */}
           <div className="pt-2 sm:pt-3">
@@ -205,7 +202,7 @@ export const PaymentInfo = () => {
                     <>
                       <Copy className="w-4 h-4 text-primary group-hover/btn:scale-110 transition-transform" />
                       <span className="text-primary font-medium">
-                        Copy Handle
+                        Copy Number
                       </span>
                     </>
                   )}

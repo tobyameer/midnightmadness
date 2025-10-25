@@ -249,9 +249,24 @@ export const RegistrationForm = () => {
   const onSubmitCouple = async (data: CoupleFormData) => {
     setIsSubmitting(true);
 
-    const maleGender = getEgyptianIdGender(data.nationalId1.trim());
-    const femaleGender = getEgyptianIdGender(data.nationalId2.trim());
-    if (maleGender !== "male" || femaleGender !== "female") {
+    const gender1 = getEgyptianIdGender(data.nationalId1.trim());
+    const gender2 = getEgyptianIdGender(data.nationalId2.trim());
+
+    // Check that both IDs are valid
+    if (gender1 === "invalid" || gender2 === "invalid") {
+      toast({
+        title: "Invalid National IDs!",
+        description: "Please enter valid 14-digit Egyptian National IDs.",
+        variant: "destructive",
+        duration: 6000,
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Check that we have exactly one male and one female (order doesn't matter)
+    const genders = [gender1, gender2];
+    if (!genders.includes("male") || !genders.includes("female")) {
       toast({
         title: "Invalid National IDs!",
         description:
@@ -270,14 +285,14 @@ export const RegistrationForm = () => {
         {
           fullName: data.fullName1.trim(),
           nationalId: data.nationalId1.trim(),
-          gender: "male" as const,
+          gender: gender1 as "male" | "female",
           email: data.email1.trim(),
           phone: data.phone1.trim(),
         },
         {
           fullName: data.fullName2.trim(),
           nationalId: data.nationalId2.trim(),
-          gender: "female" as const,
+          gender: gender2 as "male" | "female",
           email: data.email2.trim(),
           phone: data.phone2.trim(),
         },
@@ -552,9 +567,16 @@ export const RegistrationForm = () => {
                 onSubmit={coupleForm.handleSubmit(onSubmitCouple)}
                 className="space-y-8"
               >
+                <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
+                  <p className="text-blue-200 text-sm">
+                    <strong>Note:</strong> The couple package requires exactly
+                    one male and one female. The gender is automatically
+                    detected from your Egyptian National ID.
+                  </p>
+                </div>
                 <div className="space-y-6">
                   <h3 className="font-display  text-xl  text-[#a22e1f]">
-                    Person 1
+                    First Person
                   </h3>
 
                   <div className="space-y-2">
@@ -659,7 +681,7 @@ export const RegistrationForm = () => {
 
                 <div className="space-y-6">
                   <h3 className="font-display text-xl text-[#a22e1f] ">
-                    Person 2
+                    Second Person
                   </h3>
 
                   <div className="space-y-2">

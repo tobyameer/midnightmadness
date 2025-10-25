@@ -410,7 +410,7 @@ async function markAsPaid(req, res) {
     const { ticketId } = req.params;
     console.log("Mark as paid - ticketId:", ticketId);
 
-    const ticket = await Ticket.findById(ticketId);
+    const ticket = await Ticket.findOne({ ticketId: ticketId });
     console.log(
       "Mark as paid - found ticket:",
       ticket ? ticket.ticketId : "NOT FOUND"
@@ -429,15 +429,27 @@ async function markAsPaid(req, res) {
 
     // Send QR code emails to all attendees
     try {
-      // Use a simple string for QR code instead of complex object
-      const qrData = `Ticket: ${ticket.ticketId} | Event: Clear Vision | Status: ${ticket.status}`;
-      const qrCodeDataURL = await qrcode.toDataURL(qrData, {
-        width: 200,
-        margin: 2,
-        color: {
-          dark: "#000000",
-          light: "#FFFFFF",
-        },
+      // Generate QR as PNG buffer for CID attachment
+      const publicVerifyUrl = new URL(
+        `/api/verify-ticket/${ticket.ticketId}`,
+        process.env.BACKEND_VERIFY_BASE_URL ||
+          process.env.BACKEND_BASE_URL ||
+          process.env.CLIENT_URL
+      ).toString();
+
+      const qrBuffer = await qrcode.toBuffer(publicVerifyUrl, {
+        type: "png",
+        errorCorrectionLevel: "M",
+        margin: 1,
+        scale: 8,
+        color: { dark: "#000000", light: "#FFFFFFFF" },
+      });
+
+      const cid = `ticket-qr-${ticket.ticketId}@clearvision`;
+      console.log("Email: attaching QR", {
+        ticketId: ticket.ticketId,
+        cid,
+        qrSize: qrBuffer?.length,
       });
 
       // Send email to each attendee
@@ -448,7 +460,7 @@ async function markAsPaid(req, res) {
           packageType: ticket.packageType,
           attendees: ticket.attendees,
           paymentUrl: `${process.env.CLIENT_URL}/ticket/${ticket.ticketId}`,
-          qrBase64: qrCodeDataURL.split(",")[1], // Remove data:image/png;base64, prefix
+          qrCid: cid,
         });
 
         await sendEmail({
@@ -457,6 +469,14 @@ async function markAsPaid(req, res) {
           html: emailHtml,
           template: "payment_confirmation",
           ticketId: ticket.ticketId,
+          attachments: [
+            {
+              filename: `qr-${ticket.ticketId}.png`,
+              content: qrBuffer,
+              contentType: "image/png",
+              cid,
+            },
+          ],
           metadata: {
             attendeeName: attendee.fullName,
             packageType: ticket.packageType,
@@ -528,13 +548,31 @@ async function resendTicket(req, res) {
       });
     }
 
-    // Generate QR code
+    // Generate QR code as PNG buffer for CID attachment
     console.log(`Generating QR code for ticket: ${ticket.ticketId}`);
-    // Use a simple string for QR code instead of complex object
-    const qrData = `Ticket: ${ticket.ticketId} | Event: Clear Vision | Status: ${ticket.status}`;
-    console.log(`QR data:`, qrData);
-    const qrCodeDataURL = await qrcode.toDataURL(qrData);
+    const publicVerifyUrl = new URL(
+      `/api/verify-ticket/${ticket.ticketId}`,
+      process.env.BACKEND_VERIFY_BASE_URL ||
+        process.env.BACKEND_BASE_URL ||
+        process.env.CLIENT_URL
+    ).toString();
+    console.log(`QR data:`, publicVerifyUrl);
+
+    const qrBuffer = await qrcode.toBuffer(publicVerifyUrl, {
+      type: "png",
+      errorCorrectionLevel: "M",
+      margin: 1,
+      scale: 8,
+      color: { dark: "#000000", light: "#FFFFFFFF" },
+    });
     console.log(`QR code generated successfully`);
+
+    const cid = `ticket-qr-${ticket.ticketId}@clearvision`;
+    console.log("Email: attaching QR", {
+      ticketId: ticket.ticketId,
+      cid,
+      qrSize: qrBuffer?.length,
+    });
 
     // Send email to each attendee
     console.log(`Sending emails to ${ticket.attendees.length} attendees`);
@@ -549,7 +587,7 @@ async function resendTicket(req, res) {
         packageType: ticket.packageType,
         attendees: ticket.attendees,
         paymentUrl: `${process.env.CLIENT_URL}/ticket/${ticket.ticketId}`,
-        qrBase64: qrCodeDataURL.split(",")[1], // Remove data:image/png;base64, prefix
+        qrCid: cid,
       });
 
       try {
@@ -559,6 +597,14 @@ async function resendTicket(req, res) {
           html: emailHtml,
           template: "payment_confirmation",
           ticketId: ticket.ticketId,
+          attachments: [
+            {
+              filename: `qr-${ticket.ticketId}.png`,
+              content: qrBuffer,
+              contentType: "image/png",
+              cid,
+            },
+          ],
           metadata: {
             attendeeName: attendee.fullName,
             packageType: ticket.packageType,

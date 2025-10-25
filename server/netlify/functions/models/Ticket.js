@@ -72,7 +72,7 @@ const ticketSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["pending_manual_payment", "paid", "used"],
+      enum: ["pending_manual_payment", "active", "paid", "cancelled", "used"],
       default: "pending_manual_payment",
       index: true,
     },
