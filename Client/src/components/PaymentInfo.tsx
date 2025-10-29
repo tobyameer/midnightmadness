@@ -10,8 +10,8 @@ interface CopiedState {
 type PackageType = "single" | "couple";
 
 const PRICES: Record<PackageType, number> = {
-  single: 750,
-  couple: 1300,
+  single: 900,
+  couple: 1400,
 };
 
 export const PaymentInfo = () => {

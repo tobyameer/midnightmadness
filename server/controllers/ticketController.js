@@ -408,34 +408,50 @@ async function verifyTicket(req, res) {
 async function markAsPaid(req, res) {
   try {
     const { ticketId } = req.params;
-    console.log("Mark as paid - ticketId:", ticketId);
+    console.log("[mark-paid] ticketId =", ticketId);
 
-    const ticket = await Ticket.findOne({ ticketId: ticketId });
+    // Check if ticket is already paid
+    const existingTicket = await Ticket.findOne({ ticketId: ticketId });
     console.log(
       "Mark as paid - found ticket:",
-      ticket ? ticket.ticketId : "NOT FOUND"
+      existingTicket ? existingTicket.ticketId : "NOT FOUND",
+      existingTicket ? `status: ${existingTicket.status}` : ""
     );
 
-    if (!ticket) {
+    if (!existingTicket) {
+      console.log("Mark as paid - ticket not found:", ticketId);
       return res.status(404).json({
         success: false,
         message: "Ticket not found",
       });
     }
 
-    ticket.status = "paid";
-    await ticket.save();
-    console.log("Mark as paid - ticket saved successfully");
+    // If already paid, return success without sending duplicate emails
+    if (existingTicket.status === "paid") {
+      console.log(
+        "Mark as paid - ticket already paid, returning success:",
+        ticketId
+      );
+      return res.json({
+        success: true,
+        message: "Ticket already marked as paid",
+        ticket: existingTicket,
+      });
+    }
 
-    // Send QR code emails to all attendees
+    // Generate QR code and send emails FIRST, then mark as paid only if successful
     try {
+      console.log("Mark as paid - starting QR code generation for:", ticketId);
+
       // Generate QR as PNG buffer for CID attachment
       const publicVerifyUrl = new URL(
-        `/api/verify-ticket/${ticket.ticketId}`,
+        `/api/verify-ticket/${existingTicket.ticketId}`,
         process.env.BACKEND_VERIFY_BASE_URL ||
           process.env.BACKEND_BASE_URL ||
           process.env.CLIENT_URL
       ).toString();
+
+      console.log("Mark as paid - QR URL:", publicVerifyUrl);
 
       const qrBuffer = await qrcode.toBuffer(publicVerifyUrl, {
         type: "png",
@@ -445,33 +461,38 @@ async function markAsPaid(req, res) {
         color: { dark: "#000000", light: "#FFFFFFFF" },
       });
 
-      const cid = `ticket-qr-${ticket.ticketId}@clearvision`;
+      const cid = `ticket-qr-${existingTicket.ticketId}@clearvision`;
       console.log("Email: attaching QR", {
-        ticketId: ticket.ticketId,
+        ticketId: existingTicket.ticketId,
         cid,
         qrSize: qrBuffer?.length,
       });
 
       // Send email to each attendee
-      for (const attendee of ticket.attendees) {
+      let emailCount = 0;
+      for (const attendee of existingTicket.attendees) {
+        console.log(
+          `Mark as paid - sending email to ${attendee.email} for ticket ${existingTicket.ticketId}`
+        );
+
         const emailHtml = buildPaymentConfirmationEmail({
           name: attendee.fullName,
-          ticketId: ticket.ticketId,
-          packageType: ticket.packageType,
-          attendees: ticket.attendees,
-          paymentUrl: `${process.env.CLIENT_URL}/ticket/${ticket.ticketId}`,
+          ticketId: existingTicket.ticketId,
+          packageType: existingTicket.packageType,
+          attendees: existingTicket.attendees,
+          paymentUrl: `${process.env.CLIENT_URL}/ticket/${existingTicket.ticketId}`,
           qrCid: cid,
         });
 
         await sendEmail({
           to: attendee.email,
-          subject: `🎫 Your Clear Vision Ticket is Ready! (${ticket.ticketId})`,
+          subject: `🎫 Your Clear Vision Ticket is Ready! (${existingTicket.ticketId})`,
           html: emailHtml,
           template: "payment_confirmation",
-          ticketId: ticket.ticketId,
+          ticketId: existingTicket.ticketId,
           attachments: [
             {
-              filename: `qr-${ticket.ticketId}.png`,
+              filename: `qr-${existingTicket.ticketId}.png`,
               content: qrBuffer,
               contentType: "image/png",
               cid,
@@ -479,31 +500,56 @@ async function markAsPaid(req, res) {
           ],
           metadata: {
             attendeeName: attendee.fullName,
-            packageType: ticket.packageType,
+            packageType: existingTicket.packageType,
           },
         });
 
+        emailCount++;
         console.log(
-          `QR code email sent to ${attendee.email} for ticket ${ticket.ticketId}`
+          `QR code email sent to ${attendee.email} for ticket ${existingTicket.ticketId} (${emailCount}/${existingTicket.attendees.length})`
         );
       }
 
       console.log(
-        `All QR code emails sent successfully for ticket ${ticket.ticketId}`
+        `All QR code emails sent successfully for ticket ${existingTicket.ticketId} (${emailCount} emails)`
       );
-    } catch (emailError) {
-      console.error("Failed to send QR code emails:", emailError);
-      // Don't fail the entire operation if email fails
-    }
 
-    return res.json({
-      success: true,
-      message: "Ticket marked as paid and QR codes sent",
-      ticket,
-    });
+      // ✅ ONLY mark as paid AFTER QR + email succeed
+      existingTicket.status = "paid";
+      await existingTicket.save();
+      console.log("[mark-paid] status updated to paid");
+
+      console.log(
+        "Mark as paid - operation completed successfully for:",
+        ticketId
+      );
+      return res.json({
+        success: true,
+        message: "Ticket marked as paid and QR codes sent",
+        ticket: existingTicket,
+      });
+    } catch (emailError) {
+      console.error("markPaid error:", emailError);
+      console.error("Email error details:", {
+        ticketId: existingTicket.ticketId,
+        error: emailError.message,
+        stack: emailError.stack,
+      });
+      // ❌ Fail the operation - ticket stays pending
+      return res.status(500).json({
+        success: false,
+        message: "Could not complete paid approval. Ticket is NOT marked paid.",
+        error: emailError.message,
+      });
+    }
   } catch (error) {
     console.error("Mark as paid error:", error);
     console.error("Error stack:", error.stack);
+    console.error("Error details:", {
+      ticketId: req.params.ticketId,
+      error: error.message,
+      name: error.name,
+    });
     return res.status(500).json({
       success: false,
       message: "Failed to mark ticket as paid",

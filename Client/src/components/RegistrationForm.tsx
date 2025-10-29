@@ -101,31 +101,29 @@ export const RegistrationForm = () => {
   const [formError, setFormError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // --- Scroll preservation ---
-  const prevScrollY = useRef<number | null>(null);
+  // --- Scroll to registration section ---
+  const registrationSectionRef = useRef<HTMLDivElement | null>(null);
   const paymentRootRef = useRef<HTMLDivElement | null>(null);
 
-  // Restore scroll for a few frames to defeat layout/focus jumps
+  // Scroll to registration section when payment info is shown
   useLayoutEffect(() => {
-    if (showPaymentInfo && prevScrollY.current !== null) {
-      const target = prevScrollY.current;
-      let frame = 0;
-      const restore = () => {
-        window.scrollTo(0, target);
-        frame += 1;
-        if (frame < 4) requestAnimationFrame(restore);
-        else prevScrollY.current = null;
-      };
-      requestAnimationFrame(restore);
+    if (showPaymentInfo && registrationSectionRef.current) {
+      // Scroll to the registration section where the amount is visible
+      registrationSectionRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
     }
   }, [showPaymentInfo]);
 
-  // Focus the new content WITHOUT scrolling
+  // Focus the payment info content
   useEffect(() => {
     if (showPaymentInfo && paymentRootRef.current) {
       paymentRootRef.current.setAttribute("tabindex", "-1");
-      // preventScroll avoids the browser snapping to top when focusing
-      paymentRootRef.current.focus({ preventScroll: true } as any);
+      // Focus after a short delay to allow scroll to complete
+      setTimeout(() => {
+        paymentRootRef.current?.focus({ preventScroll: true } as any);
+      }, 500);
     }
   }, [showPaymentInfo]);
 
@@ -138,8 +136,8 @@ export const RegistrationForm = () => {
   });
 
   const amountDue = useMemo(() => {
-    if (selectedPackage === "single") return 750;
-    if (selectedPackage === "couple") return 1300;
+    if (selectedPackage === "single") return 900;
+    if (selectedPackage === "couple") return 1400;
     return null;
   }, [selectedPackage]);
 
@@ -204,7 +202,6 @@ export const RegistrationForm = () => {
         description: "Complete your payment to receive your ticket.",
         duration: 5000, // Show for 5 seconds
       });
-      prevScrollY.current = window.scrollY; // capture BEFORE swap
       setShowPaymentInfo(true);
     } catch (error) {
       let errorMessage = "Unable to submit registration.";
@@ -311,7 +308,6 @@ export const RegistrationForm = () => {
         description: "Complete your payment to receive your tickets.",
         duration: 5000, // Show for 5 seconds
       });
-      prevScrollY.current = window.scrollY; // capture BEFORE swap
       setShowPaymentInfo(true);
     } catch (error) {
       let errorMessage = "Unable to submit registration.";
@@ -367,7 +363,11 @@ export const RegistrationForm = () => {
   }
 
   return (
-    <section id="register" className="py-24 my-10 px-4 bg-background">
+    <section
+      id="register"
+      className="py-24 my-10 px-4 bg-background"
+      ref={registrationSectionRef}
+    >
       <div className="container mx-auto max-w-2xl">
         <div className="text-center mb-12">
           <h2 className=" text-white text-4xl md:text-5xl mb-4">
@@ -419,7 +419,7 @@ export const RegistrationForm = () => {
                       Single
                     </h3>
                     <p className="text-primary text-[12px] lg:text-4xl font-bold">
-                      750 EGP
+                      900 EGP
                     </p>
                     <p className="text-gray-500 text-[13px] lg:text-sm text-center text-sm ">
                       Perfect for solo adventurers
@@ -439,7 +439,7 @@ export const RegistrationForm = () => {
                       Couple
                     </h3>
                     <p className="text-primary text-[12px] lg:text-4xl font-bold">
-                      1,300 EGP
+                      1,400 EGP
                     </p>
                     <p className="text-gray-500 text-[13px] text-center xl:text-sm ">
                       Share the experience together
